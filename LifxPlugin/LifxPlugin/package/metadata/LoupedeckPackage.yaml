@@ -6,25 +6,25 @@
 type: plugin4
 
 # Name that identifies the plugin.
-name: Demo
+name: Lifx
 
 # Plugin name that is shown to the user.
-displayName: Demo
+displayName: LIFX Lights
 
 # Short description of the plugin.
-description: This is a demo plugin
+description: Controls LIFX smart lights via the LIFX Cloud API
 
 # Name of the plugin library file.
-pluginFileName: DemoPlugin.dll
+pluginFileName: LifxPlugin.dll
 
 # Plugin version.
 version: 1.0
 
 # Author of the plugin. The author can be a company or an individual developer.
-author: Logitech Europe SA
+author: Custom
 
 # Copyright information.
-copyright: Copyright © 2025 Logitech Europe SA. All rights reserved.
+copyright: Copyright © 2026. All rights reserved.
 
 # Minimum SDK version supported by the plugin.
 minimumLoupedeckVersion: 6.0
@@ -50,4 +50,3 @@ supportedDevices:
 
     # Logitech MX Creative Console family devices.
     - LoupedeckExtendedFamily
-

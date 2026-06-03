@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34408.163
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DemoPlugin", "DemoPlugin\DemoPlugin.csproj", "{58C04AC4-DFCD-49F9-9BF3-E8240592F3BF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LifxPlugin", "LifxPlugin\LifxPlugin.csproj", "{47A73F3A-8B2E-4D78-BE07-F1CD6F0AEB78}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{58C04AC4-DFCD-49F9-9BF3-E8240592F3BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{58C04AC4-DFCD-49F9-9BF3-E8240592F3BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{58C04AC4-DFCD-49F9-9BF3-E8240592F3BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{58C04AC4-DFCD-49F9-9BF3-E8240592F3BF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{47A73F3A-8B2E-4D78-BE07-F1CD6F0AEB78}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{47A73F3A-8B2E-4D78-BE07-F1CD6F0AEB78}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{47A73F3A-8B2E-4D78-BE07-F1CD6F0AEB78}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{47A73F3A-8B2E-4D78-BE07-F1CD6F0AEB78}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {F627919D-59F2-470B-BFAB-8D932B3514F8}
+		SolutionGuid = {C7873D30-A22F-43BB-A0A6-DC5D4919E3B9}
 	EndGlobalSection
 EndGlobal

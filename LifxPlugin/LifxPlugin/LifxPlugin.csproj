@@ -1,10 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
-    <RootNamespace>Loupedeck.DemoPlugin</RootNamespace>
+    <RootNamespace>Loupedeck.LifxPlugin</RootNamespace>
 
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -22,16 +22,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="images\ThumbDown.png" />
-    <None Remove="images\ThumbUp.png" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="images\ThumbDown.png" />
-    <EmbeddedResource Include="images\ThumbUp.png" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Reference Include="PluginApi">
       <HintPath>$(PluginApiDir)PluginApi.dll</HintPath>
     </Reference>
@@ -45,7 +35,7 @@
   </Target>
   
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Condition="$(OS) == 'Windows_NT'" Command="echo $(BaseOutputPath)$(Configuration)\ &gt; &quot;$(PluginDir)$(ProjectName).link&quot;&#xD;&#xA;start loupedeck:plugin/Demo/reload" />
+    <Exec Condition="$(OS) == 'Windows_NT'" Command="echo $(BaseOutputPath)$(Configuration)\ &gt; &quot;$(PluginDir)$(ProjectName).link&quot;&#xD;&#xA;start loupedeck:plugin/Lifx/reload" />
     <Exec Condition="$(OS) != 'Windows_NT'" Command="echo $(BaseOutputPath)$(Configuration)\ &gt; $(PluginDir)$(ProjectName).link" />
   </Target>
 
