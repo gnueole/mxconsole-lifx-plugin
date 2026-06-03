@@ -4,16 +4,16 @@ namespace Loupedeck.LifxPlugin
     using System.Collections.Generic;
     using System.Threading.Tasks;
 
-    public class ActiveRoomBrightness : PluginDynamicAdjustment
+    public class ActiveRoomHue : PluginDynamicAdjustment
     {
-        private double _globalBrightness = 0.5;
+        private double _globalHue = 0.0;
         private bool _globalInitialized = false;
 
-        private readonly Dictionary<string, double> _groupBrightnesses = new Dictionary<string, double>();
+        private readonly Dictionary<string, double> _groupHues = new Dictionary<string, double>();
         private readonly HashSet<string> _initializedGroups = new HashSet<string>();
 
-        public ActiveRoomBrightness()
-            : base(displayName: "Active Brightness", description: "Adjust brightness of active room", groupName: "LIFX", hasReset: true)
+        public ActiveRoomHue()
+            : base(displayName: "Active Hue", description: "Adjust color (hue) of active room", groupName: "LIFX", hasReset: true)
         {
         }
 
@@ -45,7 +45,7 @@ namespace Loupedeck.LifxPlugin
             }
             catch (Exception ex)
             {
-                PluginLog.Error(ex, "Error in ActiveRoomBrightness.OnSelectionUpdated");
+                PluginLog.Error(ex, "Error in ActiveRoomHue.OnSelectionUpdated");
             }
         }
 
@@ -61,48 +61,55 @@ namespace Loupedeck.LifxPlugin
 
             if (string.IsNullOrEmpty(roomId))
             {
-                // Global brightness adjustment
-                this._globalBrightness += diff * 0.02;
-                this._globalBrightness = Math.Max(0.0, Math.Min(1.0, this._globalBrightness));
+                // Global hue adjustment
+                this._globalHue = (this._globalHue + diff * 5.0) % 360.0;
+                if (this._globalHue < 0)
+                {
+                    this._globalHue += 360.0;
+                }
 
                 this.AdjustmentValueChanged();
 
                 Task.Run(async () =>
                 {
-                    await plugin.Client.SetBrightnessAsync(this._globalBrightness);
+                    await plugin.Client.SetHueAsync(this._globalHue);
                 });
             }
             else
             {
-                // Group-specific brightness adjustment
-                double currentVal = 0.5;
-                lock (this._groupBrightnesses)
+                // Group-specific hue adjustment
+                double currentVal = 0.0;
+                lock (this._groupHues)
                 {
-                    if (this._groupBrightnesses.TryGetValue(roomId, out double cachedVal))
+                    if (this._groupHues.TryGetValue(roomId, out double cachedVal))
                     {
                         currentVal = cachedVal;
                     }
                 }
 
-                currentVal += diff * 0.02;
-                currentVal = Math.Max(0.0, Math.Min(1.0, currentVal));
-
-                lock (this._groupBrightnesses)
+                currentVal = (currentVal + diff * 5.0) % 360.0;
+                if (currentVal < 0)
                 {
-                    this._groupBrightnesses[roomId] = currentVal;
+                    currentVal += 360.0;
+                }
+
+                lock (this._groupHues)
+                {
+                    this._groupHues[roomId] = currentVal;
                 }
 
                 this.AdjustmentValueChanged();
 
                 Task.Run(async () =>
                 {
-                    await plugin.Client.SetGroupBrightnessAsync(roomId, currentVal);
+                    await plugin.Client.SetGroupHueAsync(roomId, currentVal);
                 });
             }
         }
 
         protected override void RunCommand(String actionParameter)
         {
+            // Reset hue to Red (0 degrees)
             var plugin = (LifxPlugin)this.Plugin;
             if (plugin == null)
             {
@@ -113,28 +120,26 @@ namespace Loupedeck.LifxPlugin
 
             if (string.IsNullOrEmpty(roomId))
             {
-                // Reset global brightness to 100%
-                this._globalBrightness = 1.0;
+                this._globalHue = 0.0;
                 this.AdjustmentValueChanged();
 
                 Task.Run(async () =>
                 {
-                    await plugin.Client.SetBrightnessAsync(this._globalBrightness);
+                    await plugin.Client.SetHueAsync(this._globalHue);
                 });
             }
             else
             {
-                // Reset group brightness to 100%
-                lock (this._groupBrightnesses)
+                lock (this._groupHues)
                 {
-                    this._groupBrightnesses[roomId] = 1.0;
+                    this._groupHues[roomId] = 0.0;
                 }
 
                 this.AdjustmentValueChanged();
 
                 Task.Run(async () =>
                 {
-                    await plugin.Client.SetGroupBrightnessAsync(roomId, 1.0);
+                    await plugin.Client.SetGroupHueAsync(roomId, 0.0);
                 });
             }
         }
@@ -144,7 +149,7 @@ namespace Loupedeck.LifxPlugin
             var plugin = (LifxPlugin)this.Plugin;
             if (plugin == null)
             {
-                return "50%";
+                return "0°";
             }
 
             var roomId = plugin.SelectedRoomId;
@@ -158,12 +163,12 @@ namespace Loupedeck.LifxPlugin
                     {
                         if (plugin?.Client != null)
                         {
-                            this._globalBrightness = await plugin.Client.GetBrightnessAsync();
+                            this._globalHue = await plugin.Client.GetHueAsync();
                             this.AdjustmentValueChanged();
                         }
                     });
                 }
-                return $"{Math.Round(this._globalBrightness * 100)}%";
+                return $"{Math.Round(this._globalHue)}°";
             }
             else
             {
@@ -183,25 +188,25 @@ namespace Loupedeck.LifxPlugin
                     {
                         if (plugin?.Client != null)
                         {
-                            double brightness = await plugin.Client.GetGroupBrightnessAsync(roomId);
-                            lock (this._groupBrightnesses)
+                            double hue = await plugin.Client.GetGroupHueAsync(roomId);
+                            lock (this._groupHues)
                             {
-                                this._groupBrightnesses[roomId] = brightness;
+                                this._groupHues[roomId] = hue;
                             }
                             this.AdjustmentValueChanged();
                         }
                     });
                 }
 
-                double val = 0.5;
-                lock (this._groupBrightnesses)
+                double val = 0.0;
+                lock (this._groupHues)
                 {
-                    if (this._groupBrightnesses.TryGetValue(roomId, out double cachedVal))
+                    if (this._groupHues.TryGetValue(roomId, out double cachedVal))
                     {
                         val = cachedVal;
                     }
                 }
-                return $"{Math.Round(val * 100)}%";
+                return $"{Math.Round(val)}°";
             }
         }
 
@@ -210,17 +215,16 @@ namespace Loupedeck.LifxPlugin
             var plugin = (LifxPlugin)this.Plugin;
             if (plugin == null || string.IsNullOrEmpty(plugin.SelectedRoomId))
             {
-                return "Brightness";
+                return "Hue";
             }
 
             var group = plugin.Groups.Find(g => g.Id == plugin.SelectedRoomId);
-            return group != null ? $"{group.Name}" : "Brightness";
+            return group != null ? $"{group.Name}" : "Hue";
         }
 
         protected override BitmapImage GetAdjustmentImage(String actionParameter, PluginImageSize imageSize)
         {
-            return PluginImages.CreateBrightnessGaugeImage(imageSize);
+            return PluginImages.CreateColorWheelImage(imageSize);
         }
     }
 }
-

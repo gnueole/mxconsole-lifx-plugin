@@ -102,5 +102,79 @@ namespace Loupedeck.LifxPlugin
             // Right bulb slightly higher and offset
             DrawBulb(builder, x + size * 0.18f, y - size * 0.04f, size * 0.75f, color);
         }
+
+        public static BitmapImage CreateColorWheelImage(PluginImageSize imageSize, BitmapColor? bgColor = null)
+        {
+            var bg = bgColor ?? BlackColor;
+
+            using (var builder = new BitmapBuilder(imageSize))
+            {
+                builder.Clear(bg);
+
+                int w = builder.Width;
+                int h = builder.Height;
+
+                int centerX = w / 2;
+                int centerY = h / 2;
+                int outerRadius = (int)(Math.Min(w, h) * 0.42); 
+                int strokeWidth = (int)(Math.Min(w, h) * 0.14); 
+
+                for (int i = 0; i < 36; i++)
+                {
+                    float startAngle = i * 10f;
+                    float sweepAngle = 10.5f; 
+                    double hue = i * 10.0;
+
+                    if (BitmapColor.TryParseHslaColor(hue, 1.0, 0.5, 255, out var arcColor))
+                    {
+                        builder.DrawArc(centerX, centerY, outerRadius, startAngle, sweepAngle, arcColor, strokeWidth);
+                    }
+                }
+
+                return builder.ToImage();
+            }
+        }
+
+        public static BitmapImage CreateBrightnessGaugeImage(PluginImageSize imageSize, BitmapColor? bgColor = null)
+        {
+            var bg = bgColor ?? BlackColor;
+
+            using (var builder = new BitmapBuilder(imageSize))
+            {
+                builder.Clear(bg);
+
+                int w = builder.Width;
+                int h = builder.Height;
+
+                int numBars = 5;
+                float totalWidth = w * 0.70f;
+                float barWidth = totalWidth * 0.12f;
+                float barSpacing = (totalWidth - (numBars * barWidth)) / (numBars - 1);
+                
+                float startX = (w - totalWidth) / 2f;
+                float maxHeight = h * 0.60f;
+                float minHeight = h * 0.20f;
+                float bottomY = (h + maxHeight) / 2f;
+
+                for (int i = 0; i < numBars; i++)
+                {
+                    float t = (i + 1) / (float)numBars;
+                    
+                    float barHeight = minHeight + i * (maxHeight - minHeight) / (numBars - 1);
+                    float barX = startX + i * (barWidth + barSpacing);
+                    float barY = bottomY - barHeight;
+
+                    int r = (int)(0x82 * t);
+                    int g = 0;
+                    int b = (int)(0xFF * t);
+                    var barColor = new BitmapColor(r, g, b);
+
+                    builder.FillRectangle((int)barX, (int)barY, (int)barWidth, (int)barHeight, barColor);
+                }
+
+                return builder.ToImage();
+            }
+        }
     }
 }
+

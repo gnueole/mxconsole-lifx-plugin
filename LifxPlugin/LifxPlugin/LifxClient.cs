@@ -303,5 +303,150 @@ namespace Loupedeck.LifxPlugin
                 return false;
             }
         }
+
+        public async Task<double> GetHueAsync()
+        {
+            if (!this.HasToken)
+            {
+                return 0.0;
+            }
+
+            try
+            {
+                var responseJson = await this._httpClient.GetStringAsync("https://api.lifx.com/v1/lights/all");
+                using var document = JsonDocument.Parse(responseJson);
+
+                if (document.RootElement.ValueKind == JsonValueKind.Array && document.RootElement.GetArrayLength() > 0)
+                {
+                    foreach (var element in document.RootElement.EnumerateArray())
+                    {
+                        if (element.TryGetProperty("connected", out var connectedProp) && connectedProp.GetBoolean())
+                        {
+                            if (element.TryGetProperty("color", out var colorProp) && colorProp.ValueKind == JsonValueKind.Object)
+                            {
+                                if (colorProp.TryGetProperty("hue", out var hueProp))
+                                {
+                                    return hueProp.GetDouble();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, "Failed to retrieve current LIFX hue.");
+            }
+
+            return 0.0;
+        }
+
+        public async Task<bool> SetHueAsync(double hue)
+        {
+            if (!this.HasToken)
+            {
+                PluginLog.Warning("Cannot set hue: LIFX token is not configured.");
+                return false;
+            }
+
+            try
+            {
+                hue = Math.Max(0.0, Math.Min(360.0, hue));
+
+                var payload = new { color = $"hue:{hue:0.0} saturation:1.0", power = "on" };
+                var payloadString = JsonSerializer.Serialize(payload);
+                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
+
+                var response = await this._httpClient.PutAsync("https://api.lifx.com/v1/lights/all/state", content);
+                if (response.IsSuccessStatusCode)
+                {
+                    PluginLog.Info($"Successfully set LIFX hue to {hue:0.0} degrees.");
+                    return true;
+                }
+
+                PluginLog.Warning($"Failed to set hue. API returned: {response.StatusCode}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, "HTTP request to set LIFX hue failed.");
+                return false;
+            }
+        }
+
+        public async Task<double> GetGroupHueAsync(string groupId)
+        {
+            if (!this.HasToken)
+            {
+                return 0.0;
+            }
+
+            try
+            {
+                var responseJson = await this._httpClient.GetStringAsync("https://api.lifx.com/v1/lights/all");
+                using var document = JsonDocument.Parse(responseJson);
+
+                if (document.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    double sum = 0;
+                    int count = 0;
+                    foreach (var element in document.RootElement.EnumerateArray())
+                    {
+                        if (element.TryGetProperty("group", out var groupProp) && groupProp.ValueKind == JsonValueKind.Object)
+                        {
+                            if (groupProp.TryGetProperty("id", out var idProp) && idProp.GetString() == groupId)
+                            {
+                                if (element.TryGetProperty("connected", out var connectedProp) && connectedProp.GetBoolean())
+                                {
+                                    if (element.TryGetProperty("color", out var colorProp) && colorProp.ValueKind == JsonValueKind.Object)
+                                    {
+                                        if (colorProp.TryGetProperty("hue", out var hueProp))
+                                        {
+                                            sum += hueProp.GetDouble();
+                                            count++;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (count > 0)
+                    {
+                        return sum / count;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, $"Failed to retrieve hue for group {groupId}.");
+            }
+
+            return 0.0;
+        }
+
+        public async Task<bool> SetGroupHueAsync(string groupId, double hue)
+        {
+            if (!this.HasToken)
+            {
+                return false;
+            }
+
+            try
+            {
+                hue = Math.Max(0.0, Math.Min(360.0, hue));
+                var payload = new { color = $"hue:{hue:0.0} saturation:1.0", power = "on" };
+                var payloadString = JsonSerializer.Serialize(payload);
+                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
+
+                var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/group_id:{groupId}/state", content);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, $"Failed to set hue for group {groupId}.");
+                return false;
+            }
+        }
     }
 }
+
