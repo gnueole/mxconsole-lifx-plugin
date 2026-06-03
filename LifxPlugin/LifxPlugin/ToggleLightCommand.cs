@@ -104,9 +104,8 @@ namespace Loupedeck.LifxPlugin
 
         protected override BitmapImage GetCommandImage(String actionParameter, PluginImageSize imageSize)
         {
-            var text = this.GetCommandDisplayName(actionParameter, imageSize);
             var isGroup = !string.IsNullOrEmpty(actionParameter);
-            return PluginImages.CreateBulbButtonImage(imageSize, text, isGroup);
+            return PluginImages.CreateBulbButtonImage(imageSize, isGroup);
         }
     }
 }

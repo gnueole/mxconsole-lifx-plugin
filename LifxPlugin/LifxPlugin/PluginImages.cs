@@ -26,7 +26,7 @@ namespace Loupedeck.LifxPlugin
             }
         }
 
-        public static BitmapImage CreateBulbButtonImage(PluginImageSize imageSize, string text, bool isGroup, BitmapColor? textColor = null, BitmapColor? bgColor = null)
+        public static BitmapImage CreateBulbButtonImage(PluginImageSize imageSize, bool isGroup, BitmapColor? textColor = null, BitmapColor? bgColor = null)
         {
             var tc = textColor ?? PurpleColor;
             var bg = bgColor ?? BlackColor;
@@ -38,10 +38,10 @@ namespace Loupedeck.LifxPlugin
                 int w = builder.Width;
                 int h = builder.Height;
 
-                // Position the bulb icon in the upper part
+                // Center the bulb icon in the middle of the button
                 float centerX = w / 2f;
-                float centerY = h * 0.38f;
-                float bulbSize = Math.Min(w, h) * 0.52f;
+                float centerY = h / 2f;
+                float bulbSize = Math.Min(w, h) * 0.65f;
 
                 if (isGroup)
                 {
@@ -51,34 +51,6 @@ namespace Loupedeck.LifxPlugin
                 {
                     DrawBulb(builder, centerX, centerY, bulbSize, tc);
                 }
-
-                // Strip redundant prefixes like "Toggle" or "Select" to keep the button label clean
-                var cleanText = text ?? string.Empty;
-                if (cleanText.StartsWith("Toggle\n"))
-                {
-                    cleanText = cleanText.Substring("Toggle\n".Length);
-                }
-                else if (cleanText.StartsWith("Toggle "))
-                {
-                    cleanText = cleanText.Substring("Toggle ".Length);
-                }
-                else if (cleanText.StartsWith("Select\n"))
-                {
-                    cleanText = cleanText.Substring("Select\n".Length);
-                }
-                else if (cleanText.StartsWith("Select "))
-                {
-                    cleanText = cleanText.Substring("Select ".Length);
-                }
-
-                var fontSize = Math.Max(1, BitmapBuilder.GetDefaultFontSize(imageSize) - 1);
-                var lineHeight = BitmapBuilder.GetDefaultLineHeight(imageSize);
-                var spaceHeight = BitmapBuilder.GetDefaultSpaceHeight(imageSize);
-
-                int textHeight = (int)(h * 0.32f);
-                int textY = h - textHeight - 2;
-
-                builder.DrawText(cleanText, 0, textY, w, textHeight, tc, fontSize, lineHeight, spaceHeight, null);
 
                 return builder.ToImage();
             }

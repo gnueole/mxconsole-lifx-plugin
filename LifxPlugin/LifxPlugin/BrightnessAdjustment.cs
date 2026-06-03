@@ -87,7 +87,7 @@ namespace Loupedeck.LifxPlugin
             if (string.IsNullOrEmpty(actionParameter))
             {
                 // Global brightness adjustment
-                this._cachedBrightness += diff * 0.05;
+                this._cachedBrightness += diff * 0.02;
                 this._cachedBrightness = Math.Max(0.0, Math.Min(1.0, this._cachedBrightness));
 
                 this.AdjustmentValueChanged();
@@ -109,7 +109,7 @@ namespace Loupedeck.LifxPlugin
                     }
                 }
 
-                currentVal += diff * 0.05;
+                currentVal += diff * 0.02;
                 currentVal = Math.Max(0.0, Math.Min(1.0, currentVal));
 
                 lock (this._groupBrightnesses)

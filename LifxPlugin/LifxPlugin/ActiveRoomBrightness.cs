@@ -62,7 +62,7 @@ namespace Loupedeck.LifxPlugin
             if (string.IsNullOrEmpty(roomId))
             {
                 // Global brightness adjustment
-                this._globalBrightness += diff * 0.05;
+                this._globalBrightness += diff * 0.02;
                 this._globalBrightness = Math.Max(0.0, Math.Min(1.0, this._globalBrightness));
 
                 this.AdjustmentValueChanged();
@@ -84,7 +84,7 @@ namespace Loupedeck.LifxPlugin
                     }
                 }
 
-                currentVal += diff * 0.05;
+                currentVal += diff * 0.02;
                 currentVal = Math.Max(0.0, Math.Min(1.0, currentVal));
 
                 lock (this._groupBrightnesses)

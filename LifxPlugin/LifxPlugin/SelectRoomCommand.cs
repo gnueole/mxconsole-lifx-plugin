@@ -112,17 +112,16 @@ namespace Loupedeck.LifxPlugin
         protected override BitmapImage GetCommandImage(String actionParameter, PluginImageSize imageSize)
         {
             var plugin = (LifxPlugin)this.Plugin;
-            var displayName = this.GetCommandDisplayName(actionParameter, imageSize);
 
             if (plugin != null && plugin.SelectedRoomId == actionParameter)
             {
-                // Active/Selected state: Purple background, Black text
-                return PluginImages.CreateBulbButtonImage(imageSize, displayName, true, PluginImages.BlackColor, PluginImages.PurpleColor);
+                // Active/Selected state: Purple background, Black icon
+                return PluginImages.CreateBulbButtonImage(imageSize, true, PluginImages.BlackColor, PluginImages.PurpleColor);
             }
             else
             {
-                // Inactive state: Black background, Purple text
-                return PluginImages.CreateBulbButtonImage(imageSize, displayName, true, PluginImages.PurpleColor, PluginImages.BlackColor);
+                // Inactive state: Black background, Purple icon
+                return PluginImages.CreateBulbButtonImage(imageSize, true, PluginImages.PurpleColor, PluginImages.BlackColor);
             }
         }
     }
