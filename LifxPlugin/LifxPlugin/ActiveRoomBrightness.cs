@@ -207,19 +207,25 @@ namespace Loupedeck.LifxPlugin
 
         protected override String GetAdjustmentDisplayName(String actionParameter, PluginImageSize imageSize)
         {
-            var plugin = (LifxPlugin)this.Plugin;
-            if (plugin == null || string.IsNullOrEmpty(plugin.SelectedRoomId))
+            if (imageSize == PluginImageSize.None)
             {
-                return "Brightness";
+                var plugin = (LifxPlugin)this.Plugin;
+                if (plugin != null && !string.IsNullOrEmpty(plugin.SelectedRoomId))
+                {
+                    var group = plugin.Groups.Find(g => g.Id == plugin.SelectedRoomId);
+                    if (group != null)
+                    {
+                        return $"{group.Name} Brightness";
+                    }
+                }
+                return "Active Brightness";
             }
-
-            var group = plugin.Groups.Find(g => g.Id == plugin.SelectedRoomId);
-            return group != null ? $"{group.Name}" : "Brightness";
+            return "";
         }
 
         protected override BitmapImage GetAdjustmentImage(String actionParameter, PluginImageSize imageSize)
         {
-            return PluginImages.CreateBrightnessGaugeImage(imageSize);
+            return PluginImages.CreateBrightnessGaugeImage(imageSize, "Bright");
         }
     }
 }

@@ -63,15 +63,6 @@ namespace Loupedeck.LifxPlugin
                 // Register global action
                 this.AddParameter(string.Empty, "All Brightness", "LIFX");
 
-                // Register group actions
-                if (plugin.Groups != null)
-                {
-                    foreach (var group in plugin.Groups)
-                    {
-                        this.AddParameter(group.Id, group.Name, "LIFX Rooms");
-                    }
-                }
-
                 this.ParametersChanged();
             }
             catch (Exception ex)

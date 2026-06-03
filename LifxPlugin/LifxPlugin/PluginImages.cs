@@ -58,40 +58,43 @@ namespace Loupedeck.LifxPlugin
 
         private static void DrawBulb(BitmapBuilder builder, float x, float y, float size, BitmapColor color)
         {
-            // Glass part
+            // Glass part (thickened by drawing multiple concentric circles)
             float bulbRadius = size * 0.28f;
             float bulbCenterY = y - size * 0.08f;
             builder.DrawCircle(x, bulbCenterY, bulbRadius, color);
+            builder.DrawCircle(x, bulbCenterY, bulbRadius - 0.7f, color);
+            builder.DrawCircle(x, bulbCenterY, bulbRadius - 1.4f, color);
 
-            // Metal base
+            // Metal base (thickened by drawing concentric rectangles)
             float baseWidth = size * 0.20f;
             float baseHeight = size * 0.12f;
             float baseX = x - baseWidth / 2f;
             float baseY = bulbCenterY + bulbRadius - size * 0.04f;
             builder.DrawRectangle((int)baseX, (int)baseY, (int)baseWidth, (int)baseHeight, color);
+            builder.DrawRectangle((int)baseX + 1, (int)baseY + 1, (int)baseWidth - 2, (int)baseHeight - 2, color);
 
-            // Base threads
-            builder.DrawLine(baseX, baseY + baseHeight * 0.33f, baseX + baseWidth, baseY + baseHeight * 0.33f, color, 1f);
-            builder.DrawLine(baseX + baseWidth * 0.2f, baseY + baseHeight * 0.66f, baseX + baseWidth * 0.8f, baseY + baseHeight * 0.66f, color, 1f);
+            // Base threads (thickened to 2.5f)
+            builder.DrawLine(baseX, baseY + baseHeight * 0.33f, baseX + baseWidth, baseY + baseHeight * 0.33f, color, 2.5f);
+            builder.DrawLine(baseX + baseWidth * 0.2f, baseY + baseHeight * 0.66f, baseX + baseWidth * 0.8f, baseY + baseHeight * 0.66f, color, 2.5f);
 
-            // Filament
+            // Filament (thickened to 2.5f)
             float filY = bulbCenterY + bulbRadius * 0.2f;
-            builder.DrawLine(x - bulbRadius * 0.3f, filY, x + bulbRadius * 0.3f, filY, color, 1f);
-            builder.DrawLine(x - bulbRadius * 0.3f, filY, x - bulbRadius * 0.1f, filY - bulbRadius * 0.3f, color, 1f);
-            builder.DrawLine(x + bulbRadius * 0.3f, filY, x + bulbRadius * 0.1f, filY - bulbRadius * 0.3f, color, 1f);
+            builder.DrawLine(x - bulbRadius * 0.3f, filY, x + bulbRadius * 0.3f, filY, color, 2.5f);
+            builder.DrawLine(x - bulbRadius * 0.3f, filY, x - bulbRadius * 0.1f, filY - bulbRadius * 0.3f, color, 2.5f);
+            builder.DrawLine(x + bulbRadius * 0.3f, filY, x + bulbRadius * 0.1f, filY - bulbRadius * 0.3f, color, 2.5f);
 
-            // Rays
+            // Rays (thickened to 3f)
             float rayLength = size * 0.08f;
             float startDist = bulbRadius + size * 0.04f;
 
             // Top
-            builder.DrawLine(x, bulbCenterY - startDist, x, bulbCenterY - startDist - rayLength, color, 1.2f);
+            builder.DrawLine(x, bulbCenterY - startDist, x, bulbCenterY - startDist - rayLength, color, 3f);
             // Left & Right
-            builder.DrawLine(x - startDist, bulbCenterY, x - startDist - rayLength, bulbCenterY, color, 1.2f);
-            builder.DrawLine(x + startDist, bulbCenterY, x + startDist + rayLength, bulbCenterY, color, 1.2f);
+            builder.DrawLine(x - startDist, bulbCenterY, x - startDist - rayLength, bulbCenterY, color, 3f);
+            builder.DrawLine(x + startDist, bulbCenterY, x + startDist + rayLength, bulbCenterY, color, 3f);
             // Diagonals
-            builder.DrawLine(x - startDist * 0.7f, bulbCenterY - startDist * 0.7f, x - (startDist + rayLength) * 0.7f, bulbCenterY - (rayLength + startDist) * 0.7f, color, 1.2f);
-            builder.DrawLine(x + startDist * 0.7f, bulbCenterY - startDist * 0.7f, x + (startDist + rayLength) * 0.7f, bulbCenterY - (rayLength + startDist) * 0.7f, color, 1.2f);
+            builder.DrawLine(x - startDist * 0.7f, bulbCenterY - startDist * 0.7f, x - (startDist + rayLength) * 0.7f, bulbCenterY - (rayLength + startDist) * 0.7f, color, 3f);
+            builder.DrawLine(x + startDist * 0.7f, bulbCenterY - startDist * 0.7f, x + (startDist + rayLength) * 0.7f, bulbCenterY - (rayLength + startDist) * 0.7f, color, 3f);
         }
 
         private static void DrawTwoBulbs(BitmapBuilder builder, float x, float y, float size, BitmapColor color)
@@ -103,7 +106,7 @@ namespace Loupedeck.LifxPlugin
             DrawBulb(builder, x + size * 0.18f, y - size * 0.04f, size * 0.75f, color);
         }
 
-        public static BitmapImage CreateColorWheelImage(PluginImageSize imageSize, BitmapColor? bgColor = null)
+        public static BitmapImage CreateColorWheelImage(PluginImageSize imageSize, string text = null, BitmapColor? bgColor = null)
         {
             var bg = bgColor ?? BlackColor;
 
@@ -116,8 +119,8 @@ namespace Loupedeck.LifxPlugin
 
                 int centerX = w / 2;
                 int centerY = h / 2;
-                int outerRadius = (int)(Math.Min(w, h) * 0.42); 
-                int strokeWidth = (int)(Math.Min(w, h) * 0.14); 
+                int outerRadius = (int)(Math.Min(w, h) * 0.35); 
+                int strokeWidth = (int)(Math.Min(w, h) * 0.11); 
 
                 for (int i = 0; i < 36; i++)
                 {
@@ -131,11 +134,26 @@ namespace Loupedeck.LifxPlugin
                     }
                 }
 
+                if (!string.IsNullOrEmpty(text))
+                {
+                    var tc = PurpleColor;
+                    int fontSize = (int)(w * 0.13f); 
+                    int lineHeight = (int)(fontSize * 1.2f);
+                    int spaceHeight = (int)(fontSize * 0.3f);
+                    
+                    int boxW = (int)(outerRadius * 2 * 0.8f);
+                    int boxH = (int)(outerRadius * 2 * 0.8f);
+                    int boxX = centerX - boxW / 2;
+                    int boxY = centerY - boxH / 2;
+
+                    builder.DrawText(text, boxX, boxY, boxW, boxH, tc, fontSize, lineHeight, spaceHeight, "Brown Logitech Pan Light");
+                }
+
                 return builder.ToImage();
             }
         }
 
-        public static BitmapImage CreateBrightnessGaugeImage(PluginImageSize imageSize, BitmapColor? bgColor = null)
+        public static BitmapImage CreateBrightnessGaugeImage(PluginImageSize imageSize, string text = null, BitmapColor? bgColor = null)
         {
             var bg = bgColor ?? BlackColor;
 
@@ -146,30 +164,39 @@ namespace Loupedeck.LifxPlugin
                 int w = builder.Width;
                 int h = builder.Height;
 
-                int numBars = 5;
-                float totalWidth = w * 0.70f;
-                float barWidth = totalWidth * 0.12f;
-                float barSpacing = (totalWidth - (numBars * barWidth)) / (numBars - 1);
-                
-                float startX = (w - totalWidth) / 2f;
-                float maxHeight = h * 0.60f;
-                float minHeight = h * 0.20f;
-                float bottomY = (h + maxHeight) / 2f;
+                int centerX = w / 2;
+                int centerY = h / 2;
+                int outerRadius = (int)(Math.Min(w, h) * 0.35); 
+                int strokeWidth = (int)(Math.Min(w, h) * 0.11); 
 
-                for (int i = 0; i < numBars; i++)
+                // Draw 36 segments of 10 degrees each graduating from dark purple to full purple clockwise
+                for (int i = 0; i < 36; i++)
                 {
-                    float t = (i + 1) / (float)numBars;
-                    
-                    float barHeight = minHeight + i * (maxHeight - minHeight) / (numBars - 1);
-                    float barX = startX + i * (barWidth + barSpacing);
-                    float barY = bottomY - barHeight;
+                    float startAngle = i * 10f;
+                    float sweepAngle = 10.5f; 
+                    float t = (i + 1) / 36f; // color fraction from 0 to 1
 
                     int r = (int)(0x82 * t);
                     int g = 0;
                     int b = (int)(0xFF * t);
-                    var barColor = new BitmapColor(r, g, b);
+                    var arcColor = new BitmapColor(r, g, b);
 
-                    builder.FillRectangle((int)barX, (int)barY, (int)barWidth, (int)barHeight, barColor);
+                    builder.DrawArc(centerX, centerY, outerRadius, startAngle, sweepAngle, arcColor, strokeWidth);
+                }
+
+                if (!string.IsNullOrEmpty(text))
+                {
+                    var tc = PurpleColor;
+                    int fontSize = (int)(w * 0.13f); 
+                    int lineHeight = (int)(fontSize * 1.2f);
+                    int spaceHeight = (int)(fontSize * 0.3f);
+                    
+                    int boxW = (int)(outerRadius * 2 * 0.8f);
+                    int boxH = (int)(outerRadius * 2 * 0.8f);
+                    int boxX = centerX - boxW / 2;
+                    int boxY = centerY - boxH / 2;
+
+                    builder.DrawText(text, boxX, boxY, boxW, boxH, tc, fontSize, lineHeight, spaceHeight, "Brown Logitech Pan Light");
                 }
 
                 return builder.ToImage();
@@ -177,4 +204,3 @@ namespace Loupedeck.LifxPlugin
         }
     }
 }
-
