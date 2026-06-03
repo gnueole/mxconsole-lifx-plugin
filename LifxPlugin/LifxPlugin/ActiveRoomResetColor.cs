@@ -32,7 +32,14 @@ namespace Loupedeck.LifxPlugin
 
         private void OnSelectionUpdated(object sender, EventArgs e)
         {
-            this.ActionImageChanged();
+            try
+            {
+                this.ActionImageChanged();
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, "Error in ActiveRoomResetColor.OnSelectionUpdated");
+            }
         }
 
         protected override void RunCommand(String actionParameter)

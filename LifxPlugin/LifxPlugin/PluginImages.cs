@@ -53,7 +53,7 @@ namespace Loupedeck.LifxPlugin
                 }
 
                 // Strip redundant prefixes like "Toggle" or "Select" to keep the button label clean
-                var cleanText = text;
+                var cleanText = text ?? string.Empty;
                 if (cleanText.StartsWith("Toggle\n"))
                 {
                     cleanText = cleanText.Substring("Toggle\n".Length);
@@ -71,7 +71,7 @@ namespace Loupedeck.LifxPlugin
                     cleanText = cleanText.Substring("Select ".Length);
                 }
 
-                var fontSize = BitmapBuilder.GetDefaultFontSize(imageSize) - 1;
+                var fontSize = Math.Max(1, BitmapBuilder.GetDefaultFontSize(imageSize) - 1);
                 var lineHeight = BitmapBuilder.GetDefaultLineHeight(imageSize);
                 var spaceHeight = BitmapBuilder.GetDefaultSpaceHeight(imageSize);
 

@@ -50,20 +50,34 @@ namespace Loupedeck.LifxPlugin
 
         private void OnGroupsUpdated(object sender, EventArgs e)
         {
-            var plugin = (LifxPlugin)this.Plugin;
-
-            this.RemoveAllParameters();
-
-            // Register global action
-            this.AddParameter(string.Empty, "All Brightness", "LIFX");
-
-            // Register group actions
-            foreach (var group in plugin.Groups)
+            try
             {
-                this.AddParameter(group.Id, group.Name, "LIFX Rooms");
-            }
+                var plugin = (LifxPlugin)this.Plugin;
+                if (plugin == null)
+                {
+                    return;
+                }
 
-            this.ParametersChanged();
+                this.RemoveAllParameters();
+
+                // Register global action
+                this.AddParameter(string.Empty, "All Brightness", "LIFX");
+
+                // Register group actions
+                if (plugin.Groups != null)
+                {
+                    foreach (var group in plugin.Groups)
+                    {
+                        this.AddParameter(group.Id, group.Name, "LIFX Rooms");
+                    }
+                }
+
+                this.ParametersChanged();
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, "Error in BrightnessAdjustment.OnGroupsUpdated");
+            }
         }
 
         protected override void ApplyAdjustment(String actionParameter, Int32 diff)
@@ -166,9 +180,18 @@ namespace Loupedeck.LifxPlugin
             }
             else
             {
-                if (!this._initializedGroups.Contains(actionParameter))
+                bool shouldInit = false;
+                lock (this._initializedGroups)
                 {
-                    this._initializedGroups.Add(actionParameter);
+                    if (!this._initializedGroups.Contains(actionParameter))
+                    {
+                        this._initializedGroups.Add(actionParameter);
+                        shouldInit = true;
+                    }
+                }
+
+                if (shouldInit)
+                {
                     Task.Run(async () =>
                     {
                         if (plugin?.Client != null)

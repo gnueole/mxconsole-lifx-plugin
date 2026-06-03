@@ -61,12 +61,19 @@ namespace Loupedeck.LifxPlugin
                     // Fetch groups asynchronously in the background so it doesn't block plugin loading
                     Task.Run(async () =>
                     {
-                        var groupsList = await this.Client.GetGroupsAsync();
-                        this.Groups = groupsList;
-                        PluginLog.Info($"LIFX Plugin: successfully loaded {groupsList.Count} groups.");
-                        
-                        // Fire event to notify dynamic actions and adjustments to register parameters
-                        this.GroupsUpdated?.Invoke(this, EventArgs.Empty);
+                        try
+                        {
+                            var groupsList = await this.Client.GetGroupsAsync();
+                            this.Groups = groupsList ?? new List<LifxGroup>();
+                            PluginLog.Info($"LIFX Plugin: successfully loaded {this.Groups.Count} groups.");
+                            
+                            // Fire event to notify dynamic actions and adjustments to register parameters
+                            this.GroupsUpdated?.Invoke(this, EventArgs.Empty);
+                        }
+                        catch (Exception ex)
+                        {
+                            PluginLog.Error(ex, "Exception in background group loader task.");
+                        }
                     });
                 }
             }

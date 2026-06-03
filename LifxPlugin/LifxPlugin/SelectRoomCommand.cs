@@ -39,22 +39,43 @@ namespace Loupedeck.LifxPlugin
 
         private void OnGroupsUpdated(object sender, EventArgs e)
         {
-            var plugin = (LifxPlugin)this.Plugin;
-
-            this.RemoveAllParameters();
-
-            // Register room selectors
-            foreach (var group in plugin.Groups)
+            try
             {
-                this.AddParameter(group.Id, group.Name, "LIFX Room Selector");
-            }
+                var plugin = (LifxPlugin)this.Plugin;
+                if (plugin == null)
+                {
+                    return;
+                }
 
-            this.ParametersChanged();
+                this.RemoveAllParameters();
+
+                // Register room selectors
+                if (plugin.Groups != null)
+                {
+                    foreach (var group in plugin.Groups)
+                    {
+                        this.AddParameter(group.Id, group.Name, "LIFX Room Selector");
+                    }
+                }
+
+                this.ParametersChanged();
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, "Error in SelectRoomCommand.OnGroupsUpdated");
+            }
         }
 
         private void OnSelectionUpdated(object sender, EventArgs e)
         {
-            this.ActionImageChanged();
+            try
+            {
+                this.ActionImageChanged();
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, "Error in SelectRoomCommand.OnSelectionUpdated");
+            }
         }
 
         protected override void RunCommand(String actionParameter)

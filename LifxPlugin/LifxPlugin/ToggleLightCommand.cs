@@ -43,20 +43,34 @@ namespace Loupedeck.LifxPlugin
 
         private void OnGroupsUpdated(object sender, EventArgs e)
         {
-            var plugin = (LifxPlugin)this.Plugin;
-
-            this.RemoveAllParameters();
-
-            // Register global action
-            this.AddParameter(string.Empty, "All Lights", "LIFX");
-
-            // Register group actions
-            foreach (var group in plugin.Groups)
+            try
             {
-                this.AddParameter(group.Id, group.Name, "LIFX Rooms");
-            }
+                var plugin = (LifxPlugin)this.Plugin;
+                if (plugin == null)
+                {
+                    return;
+                }
 
-            this.ParametersChanged();
+                this.RemoveAllParameters();
+
+                // Register global action
+                this.AddParameter(string.Empty, "All Lights", "LIFX");
+
+                // Register group actions
+                if (plugin.Groups != null)
+                {
+                    foreach (var group in plugin.Groups)
+                    {
+                        this.AddParameter(group.Id, group.Name, "LIFX Rooms");
+                    }
+                }
+
+                this.ParametersChanged();
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, "Error updating parameters in ToggleLightCommand.OnGroupsUpdated");
+            }
         }
 
         protected override void RunCommand(String actionParameter)

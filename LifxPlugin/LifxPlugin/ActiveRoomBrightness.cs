@@ -39,7 +39,14 @@ namespace Loupedeck.LifxPlugin
 
         private void OnSelectionUpdated(object sender, EventArgs e)
         {
-            this.AdjustmentValueChanged();
+            try
+            {
+                this.AdjustmentValueChanged();
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, "Error in ActiveRoomBrightness.OnSelectionUpdated");
+            }
         }
 
         protected override void ApplyAdjustment(String actionParameter, Int32 diff)
@@ -160,9 +167,18 @@ namespace Loupedeck.LifxPlugin
             }
             else
             {
-                if (!this._initializedGroups.Contains(roomId))
+                bool shouldInit = false;
+                lock (this._initializedGroups)
                 {
-                    this._initializedGroups.Add(roomId);
+                    if (!this._initializedGroups.Contains(roomId))
+                    {
+                        this._initializedGroups.Add(roomId);
+                        shouldInit = true;
+                    }
+                }
+
+                if (shouldInit)
+                {
                     Task.Run(async () =>
                     {
                         if (plugin?.Client != null)
