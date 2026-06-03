@@ -21,10 +21,13 @@ pluginFileName: LifxPlugin.dll
 version: 1.0
 
 # Author of the plugin. The author can be a company or an individual developer.
-author: Custom
+author: Éole
+
+# Homepage of the plugin.
+homepage: https://github.com/gnueole/mxconsole-lifx-plugin
 
 # Copyright information.
-copyright: Copyright © 2026. All rights reserved.
+copyright: Copyright © 2026 Éole. All rights reserved.
 
 # Minimum SDK version supported by the plugin.
 minimumLoupedeckVersion: 6.0
