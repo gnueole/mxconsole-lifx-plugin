@@ -27,7 +27,7 @@ author: Éole
 homepage: https://github.com/gnueole/mxconsole-lifx-plugin
 
 # Copyright information.
-copyright: Copyright © 2026 Éole. All rights reserved.
+copyright: Copyright © 2026 Éole. MIT Licensed.
 
 # Minimum SDK version supported by the plugin.
 minimumLoupedeckVersion: 6.0
