@@ -2,18 +2,19 @@
 
 A C# plugin for Logitech MX Creative Console and Loupedeck consoles that allows you to control your LIFX smart lights via the LIFX Cloud API.
 
-![LIFX Smart Lights Plugin Showcase](L1005216.jpg)
+<img src="images/mx_console_lifx_photo.jpg" width="67%" alt="LIFX Smart Lights Plugin Showcase">
 
 ## Features
 
-- **Global & Room Control:** Supports toggling power and adjusting brightness for all lights globally, or for individual rooms/groups (e.g. Living Room, Bedroom) discovered dynamically from your LIFX account.
-- **Active Room Selector Model:** Map selector keys to make a specific room "Active". The active room is dynamically highlighted (purple background). Once selected, general buttons and dials apply directly to that room:
-  - *Active Brightness:* Adjust active room brightness (press dial to reset to 100%).
-  - *Active Power Toggle:* Toggle power of the active room.
-  - *Reset Color:* Instantly reset the active room's color back to standard white.
-- **Premium Visual Aesthetics:** Buttons are custom-rendered with a premium black background and vibrant purple (`#8200FF`) text. Selected active selectors invert to purple background and black text.
-- **Asynchronous UI:** Operates on background threads to ensure your console dials and displays stay responsive and latency-free.
-- **Local Settings:** Securely reads your Personal Access Token from your local Windows user profile.
+| Feature | Icon(s) | Description |
+| :--- | :---: | :--- |
+| **Active Room Selector Model** | <img src="images/group_inactive_icon.png" width="28" height="28" alt="Inactive Group"> / <img src="images/group_active_icon.png" width="28" height="28" alt="Active Group"> | Map selector keys to make a specific room "Active". The button dynamically highlights by inverting to a purple background. **Note:** *You must select a room/group first before dials and general buttons will apply to it.* (Defaults to global control if none is active). |
+| **Brightness Control** | <img src="images/brightness_icon.png" width="28" height="28" alt="Brightness"> | Adjust active room brightness smoothly using console dials or rollers. Press the dial to reset brightness back to 100%. |
+| **Color & Hue Selection** | <img src="images/hue_icon.png" width="28" height="28" alt="Hue"> | Use dial controls to sweep through the complete HSL color spectrum for rich, vivid color lighting. |
+| **Temperature & Warmth** | <img src="images/warmth_icon.png" width="28" height="28" alt="Warmth"> | Dynamically shift the warmth of white light between warm orange candlelight (1500K) and cool daylight (9000K). |
+| **Premium Visual Aesthetics** | — | Custom-rendered keypad buttons featuring a premium black background and vibrant purple (`#8200FF`) text. |
+| **Asynchronous UI** | — | Background-threaded API operations to keep your console's dials and displays completely lag-free. |
+| **Local Settings** | — | Securely and automatically reads your Personal Access Token from your local Windows user profile. |
 
 ---
 
