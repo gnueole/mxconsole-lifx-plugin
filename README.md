@@ -2,6 +2,8 @@
 
 A C# plugin for Logitech MX Creative Console and Loupedeck consoles that allows you to control your LIFX smart lights via the LIFX Cloud API.
 
+![LIFX Smart Lights Plugin Showcase](L1005216.jpg)
+
 ## Features
 
 - **Global & Room Control:** Supports toggling power and adjusting brightness for all lights globally, or for individual rooms/groups (e.g. Living Room, Bedroom) discovered dynamically from your LIFX account.
