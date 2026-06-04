@@ -2,6 +2,8 @@
 
 This document outlines the product pitch, presentation brief, and technical setup guide for the **LIFX Smart Lights Plugin** for the Logitech MX Creative Console (powered by Loupedeck).
 
+[LIFX](https://www.lifx.com) designs Wi-Fi-enabled, hub-less smart LED lights featuring high-fidelity color ranges, Kelvin temperature adjustments, and a comprehensive Cloud API for developers.
+
 > [!NOTE]
 > **Initial Release Scope:** For this initial release, the plugin exclusively handles light groups (rooms), hue, brightness, on/off, and warmness adjustments.
 
