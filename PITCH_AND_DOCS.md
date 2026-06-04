@@ -2,6 +2,9 @@
 
 This document outlines the product pitch, presentation brief, and technical setup guide for the **LIFX Smart Lights Plugin** for the Logitech MX Creative Console (powered by Loupedeck).
 
+> [!NOTE]
+> **Initial Release Scope:** For this initial release, the plugin exclusively handles light groups (rooms), hue, brightness, on/off, and warmness adjustments.
+
 ---
 
 ## Part 1: Product Presentation Pitch Brief
