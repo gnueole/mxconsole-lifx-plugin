@@ -6,6 +6,7 @@ namespace Loupedeck.LifxPlugin
     {
         public static readonly BitmapColor PurpleColor = new BitmapColor(0x82, 0x00, 0xFF);
         public static readonly BitmapColor BlackColor = BitmapColor.Black;
+        public static readonly BitmapColor DullWhiteColor = new BitmapColor(200, 200, 200);
 
         public static BitmapImage CreateButtonImage(PluginImageSize imageSize, string text, BitmapColor? textColor = null, BitmapColor? bgColor = null)
         {

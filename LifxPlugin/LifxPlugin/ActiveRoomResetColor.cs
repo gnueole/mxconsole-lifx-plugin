@@ -72,7 +72,7 @@ namespace Loupedeck.LifxPlugin
         {
             var plugin = (LifxPlugin)this.Plugin;
             var isGroup = plugin != null && !string.IsNullOrEmpty(plugin.SelectedRoomId);
-            return PluginImages.CreateBulbButtonImage(imageSize, isGroup);
+            return PluginImages.CreateBulbButtonImage(imageSize, isGroup, PluginImages.DullWhiteColor, PluginImages.BlackColor);
         }
     }
 }
