@@ -9,6 +9,11 @@ namespace Loupedeck.LifxPlugin
 
         public static BitmapImage CreateButtonImage(PluginImageSize imageSize, string text, BitmapColor? textColor = null, BitmapColor? bgColor = null)
         {
+            if (imageSize == PluginImageSize.None)
+            {
+                return null;
+            }
+
             var tc = textColor ?? PurpleColor;
             var bg = bgColor ?? BlackColor;
 
@@ -28,6 +33,11 @@ namespace Loupedeck.LifxPlugin
 
         public static BitmapImage CreateBulbButtonImage(PluginImageSize imageSize, bool isGroup, BitmapColor? textColor = null, BitmapColor? bgColor = null)
         {
+            if (imageSize == PluginImageSize.None)
+            {
+                return null;
+            }
+
             var tc = textColor ?? PurpleColor;
             var bg = bgColor ?? BlackColor;
 
@@ -108,6 +118,11 @@ namespace Loupedeck.LifxPlugin
 
         public static BitmapImage CreateColorWheelImage(PluginImageSize imageSize, string text = null, BitmapColor? bgColor = null)
         {
+            if (imageSize == PluginImageSize.None)
+            {
+                return null;
+            }
+
             var bg = bgColor ?? BlackColor;
 
             using (var builder = new BitmapBuilder(imageSize))
@@ -122,6 +137,7 @@ namespace Loupedeck.LifxPlugin
                 int outerRadius = (int)(Math.Min(w, h) * 0.35); 
                 int strokeWidth = (int)(Math.Min(w, h) * 0.11); 
 
+                // Full 360-degree color wheel restored
                 for (int i = 0; i < 36; i++)
                 {
                     float startAngle = i * 10f;
@@ -155,6 +171,11 @@ namespace Loupedeck.LifxPlugin
 
         public static BitmapImage CreateBrightnessGaugeImage(PluginImageSize imageSize, string text = null, BitmapColor? bgColor = null)
         {
+            if (imageSize == PluginImageSize.None)
+            {
+                return null;
+            }
+
             var bg = bgColor ?? BlackColor;
 
             using (var builder = new BitmapBuilder(imageSize))
@@ -169,16 +190,16 @@ namespace Loupedeck.LifxPlugin
                 int outerRadius = (int)(Math.Min(w, h) * 0.35); 
                 int strokeWidth = (int)(Math.Min(w, h) * 0.11); 
 
-                // Draw 36 segments of 10 degrees each graduating from dark purple to full purple clockwise
-                for (int i = 0; i < 36; i++)
+                // Draw 27 segments graduating from a visible base yellow (30%) to full gold/yellow (100%)
+                for (int i = 0; i < 27; i++)
                 {
-                    float startAngle = i * 10f;
+                    float startAngle = 135f + i * 10f;
                     float sweepAngle = 10.5f; 
-                    float t = (i + 1) / 36f; // color fraction from 0 to 1
+                    float t = 0.3f + 0.7f * (i / 26f); // color fraction starting at 30% for symmetry
 
-                    int r = (int)(0x82 * t);
-                    int g = 0;
-                    int b = (int)(0xFF * t);
+                    int r = (int)(255 * t);
+                    int g = (int)(220 * t);
+                    int b = (int)(50 * t);
                     var arcColor = new BitmapColor(r, g, b);
 
                     builder.DrawArc(centerX, centerY, outerRadius, startAngle, sweepAngle, arcColor, strokeWidth);
@@ -198,6 +219,86 @@ namespace Loupedeck.LifxPlugin
 
                     builder.DrawText(text, boxX, boxY, boxW, boxH, tc, fontSize, lineHeight, spaceHeight, "Brown Logitech Pan Light");
                 }
+
+                return builder.ToImage();
+            }
+        }
+
+        public static BitmapImage CreateWarmthWheelImage(PluginImageSize imageSize, BitmapColor? bgColor = null)
+        {
+            if (imageSize == PluginImageSize.None)
+            {
+                return null;
+            }
+
+            var bg = bgColor ?? BlackColor;
+
+            using (var builder = new BitmapBuilder(imageSize))
+            {
+                builder.Clear(bg);
+
+                int w = builder.Width;
+                int h = builder.Height;
+
+                int centerX = w / 2;
+                int centerY = h / 2;
+                int outerRadius = (int)(Math.Min(w, h) * 0.35); 
+                int strokeWidth = (int)(Math.Min(w, h) * 0.11); 
+
+                // Smooth gradient around the 270-degree arc:
+                // Inverted so it is warm orange (255, 100, 0) on the left (i=0) to cold blue (100, 180, 255) on the right (i=26)
+                for (int i = 0; i < 27; i++)
+                {
+                    float startAngle = 135f + i * 10f;
+                    float sweepAngle = 10.5f; 
+                    
+                    float t = (26 - i) / 26f;
+
+                    int r = (int)(100 + (255 - 100) * t);
+                    int g = (int)(180 + (100 - 180) * t);
+                    int b = (int)(255 + (0 - 255) * t);
+                    var arcColor = new BitmapColor(r, g, b);
+
+                    builder.DrawArc(centerX, centerY, outerRadius, startAngle, sweepAngle, arcColor, strokeWidth);
+                }
+
+                return builder.ToImage();
+            }
+        }
+
+        public static BitmapImage CreatePowerButtonImage(PluginImageSize imageSize, BitmapColor? textColor = null, BitmapColor? bgColor = null)
+        {
+            if (imageSize == PluginImageSize.None)
+            {
+                return null;
+            }
+
+            var tc = textColor ?? PurpleColor;
+            var bg = bgColor ?? BlackColor;
+
+            using (var builder = new BitmapBuilder(imageSize))
+            {
+                builder.Clear(bg);
+
+                int w = builder.Width;
+                int h = builder.Height;
+
+                int centerX = w / 2;
+                int centerY = h / 2;
+                int radius = (int)(Math.Min(w, h) * 0.28);
+                int strokeWidth = (int)(Math.Min(w, h) * 0.06);
+                if (strokeWidth < 1)
+                {
+                    strokeWidth = 1;
+                }
+
+                // Draw circle arc for the power symbol (from 300 degrees to 240 degrees, leaving the top open)
+                builder.DrawArc(centerX, centerY, radius, 300f, 300f, tc, (float)strokeWidth);
+
+                // Draw vertical line from center top downwards
+                int lineStartY = centerY - (int)(radius * 1.2);
+                int lineEndY = centerY;
+                builder.DrawLine((float)centerX, (float)lineStartY, (float)centerX, (float)lineEndY, tc, (float)strokeWidth);
 
                 return builder.ToImage();
             }

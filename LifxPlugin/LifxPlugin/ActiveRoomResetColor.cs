@@ -6,7 +6,7 @@ namespace Loupedeck.LifxPlugin
     public class ActiveRoomResetColor : PluginDynamicCommand
     {
         public ActiveRoomResetColor()
-            : base()
+            : base("Reset Color", "Reset active room color to standard white", "LIFX")
         {
         }
 

@@ -4,12 +4,12 @@ namespace Loupedeck.LifxPlugin
     using System.Collections.Generic;
     using System.Threading.Tasks;
 
-    public class ActiveRoomHue : PluginDynamicAdjustment
+    public class ActiveRoomWarmth : PluginDynamicAdjustment
     {
-        private double _globalHue = 0.0;
+        private int _globalTemperature = 3500;
         private bool _globalInitialized = false;
 
-        private readonly Dictionary<string, double> _groupHues = new Dictionary<string, double>();
+        private readonly Dictionary<string, int> _groupTemperatures = new Dictionary<string, int>();
         private readonly HashSet<string> _initializedGroups = new HashSet<string>();
 
         // Coalescers prevent overlapping HTTP calls when dial spins fast
@@ -21,8 +21,8 @@ namespace Loupedeck.LifxPlugin
         private RequestCoalescer _localGlobalBrightnessCoalescer;
         private readonly Dictionary<string, RequestCoalescer> _localGroupBrightnessCoalescers = new Dictionary<string, RequestCoalescer>();
 
-        public ActiveRoomHue()
-            : base(displayName: "Hue", description: "Adjust color (hue) of active room", groupName: "LIFX", hasReset: true)
+        public ActiveRoomWarmth()
+            : base(displayName: "Warmth", description: "Adjust color temperature of active room", groupName: "LIFX", hasReset: true)
         {
         }
 
@@ -66,7 +66,7 @@ namespace Loupedeck.LifxPlugin
                         }
                     }
 
-                    // Fetch active room/global brightness for the local cache
+                    // Fetch active room/global brightness for local cache
                     Task.Run(async () =>
                     {
                         if (plugin.Client != null)
@@ -90,7 +90,7 @@ namespace Loupedeck.LifxPlugin
             }
             catch (Exception ex)
             {
-                PluginLog.Error(ex, "Error in ActiveRoomHue.OnSelectionUpdated");
+                PluginLog.Error(ex, "Error in ActiveRoomWarmth.OnSelectionUpdated");
             }
         }
 
@@ -106,51 +106,44 @@ namespace Loupedeck.LifxPlugin
 
             if (string.IsNullOrEmpty(roomId))
             {
-                // Global hue adjustment
-                this._globalHue = (this._globalHue + diff * 5.0) % 360.0;
-                if (this._globalHue < 0)
-                {
-                    this._globalHue += 360.0;
-                }
+                // Global temperature adjustment (clockwise = colder = higher Kelvin)
+                this._globalTemperature += diff * 200;
+                this._globalTemperature = Math.Max(1500, Math.Min(9000, this._globalTemperature));
+                var targetTemp = this._globalTemperature;
 
-                PluginLog.Info($"[Hue] Global: diff={diff:+0;-0}, target={this._globalHue:0.0}°");
+                PluginLog.Info($"[Warmth] Global: diff={diff:+0;-0}, target={targetTemp}K");
                 this.AdjustmentValueChanged();
 
                 if (this._globalCoalescer == null)
                 {
                     this._globalCoalescer = new RequestCoalescer(async () =>
                     {
-                        double val;
-                        lock (this._groupHues) { val = this._globalHue; }
-                        await plugin.Client.SetHueAsync(val);
+                        await plugin.Client.SetTemperatureAsync(this._globalTemperature);
                     });
                 }
                 this._globalCoalescer.Trigger();
             }
             else
             {
-                // Group-specific hue adjustment
-                double currentVal = 0.0;
-                lock (this._groupHues)
+                // Group-specific temperature adjustment (clockwise = warmer = lower Kelvin)
+                int currentVal = 3500;
+                lock (this._groupTemperatures)
                 {
-                    if (this._groupHues.TryGetValue(roomId, out double cachedVal))
+                    if (this._groupTemperatures.TryGetValue(roomId, out int cachedVal))
                     {
                         currentVal = cachedVal;
                     }
                 }
 
-                currentVal = (currentVal + diff * 5.0) % 360.0;
-                if (currentVal < 0)
+                currentVal += diff * 200;
+                currentVal = Math.Max(1500, Math.Min(9000, currentVal));
+
+                lock (this._groupTemperatures)
                 {
-                    currentVal += 360.0;
+                    this._groupTemperatures[roomId] = currentVal;
                 }
 
-                lock (this._groupHues)
-                {
-                    this._groupHues[roomId] = currentVal;
-                }
-
-                PluginLog.Info($"[Hue] Group {roomId}: diff={diff:+0;-0}, target={currentVal:0.0}°");
+                PluginLog.Info($"[Warmth] Group {roomId}: diff={diff:+0;-0}, target={currentVal}K");
                 this.AdjustmentValueChanged();
 
                 RequestCoalescer coalescer;
@@ -161,12 +154,12 @@ namespace Loupedeck.LifxPlugin
                         var capturedRoomId = roomId;
                         coalescer = new RequestCoalescer(async () =>
                         {
-                            double val;
-                            lock (this._groupHues)
+                            int val;
+                            lock (this._groupTemperatures)
                             {
-                                this._groupHues.TryGetValue(capturedRoomId, out val);
+                                this._groupTemperatures.TryGetValue(capturedRoomId, out val);
                             }
-                            await plugin.Client.SetGroupHueAsync(capturedRoomId, val);
+                            await plugin.Client.SetGroupTemperatureAsync(capturedRoomId, val);
                         });
                         this._groupCoalescers[roomId] = coalescer;
                     }
@@ -177,7 +170,7 @@ namespace Loupedeck.LifxPlugin
 
         protected override void RunCommand(String actionParameter)
         {
-            // Reset hue to Red (0 degrees)
+            // Reset temperature to standard warm-white (3500K)
             var plugin = (LifxPlugin)this.Plugin;
             if (plugin == null)
             {
@@ -188,27 +181,22 @@ namespace Loupedeck.LifxPlugin
 
             if (string.IsNullOrEmpty(roomId))
             {
-                this._globalHue = 0.0;
+                this._globalTemperature = 3500;
+                PluginLog.Info("[Warmth] Reset global temperature to 3500K");
                 this.AdjustmentValueChanged();
 
-                Task.Run(async () =>
-                {
-                    await plugin.Client.SetHueAsync(this._globalHue);
-                });
+                Task.Run(async () => await plugin.Client.SetTemperatureAsync(3500));
             }
             else
             {
-                lock (this._groupHues)
+                lock (this._groupTemperatures)
                 {
-                    this._groupHues[roomId] = 0.0;
+                    this._groupTemperatures[roomId] = 3500;
                 }
-
+                PluginLog.Info($"[Warmth] Reset group {roomId} temperature to 3500K");
                 this.AdjustmentValueChanged();
 
-                Task.Run(async () =>
-                {
-                    await plugin.Client.SetGroupHueAsync(roomId, 0.0);
-                });
+                Task.Run(async () => await plugin.Client.SetGroupTemperatureAsync(roomId, 3500));
             }
         }
 
@@ -217,7 +205,7 @@ namespace Loupedeck.LifxPlugin
             var plugin = (LifxPlugin)this.Plugin;
             if (plugin == null)
             {
-                return "0°";
+                return "3500K";
             }
 
             var roomId = plugin.SelectedRoomId;
@@ -231,12 +219,12 @@ namespace Loupedeck.LifxPlugin
                     {
                         if (plugin?.Client != null)
                         {
-                            this._globalHue = await plugin.Client.GetHueAsync();
+                            this._globalTemperature = await plugin.Client.GetTemperatureAsync();
                             this.AdjustmentValueChanged();
                         }
                     });
                 }
-                return $"{Math.Round(this._globalHue)}°";
+                return $"{this._globalTemperature}K";
             }
             else
             {
@@ -256,25 +244,25 @@ namespace Loupedeck.LifxPlugin
                     {
                         if (plugin?.Client != null)
                         {
-                            double hue = await plugin.Client.GetGroupHueAsync(roomId);
-                            lock (this._groupHues)
+                            int temp = await plugin.Client.GetGroupTemperatureAsync(roomId);
+                            lock (this._groupTemperatures)
                             {
-                                this._groupHues[roomId] = hue;
+                                this._groupTemperatures[roomId] = temp;
                             }
                             this.AdjustmentValueChanged();
                         }
                     });
                 }
 
-                double val = 0.0;
-                lock (this._groupHues)
+                int val = 3500;
+                lock (this._groupTemperatures)
                 {
-                    if (this._groupHues.TryGetValue(roomId, out double cachedVal))
+                    if (this._groupTemperatures.TryGetValue(roomId, out int cachedVal))
                     {
                         val = cachedVal;
                     }
                 }
-                return $"{Math.Round(val)}°";
+                return $"{val}K";
             }
         }
 
@@ -288,17 +276,17 @@ namespace Loupedeck.LifxPlugin
                     var group = plugin.Groups.Find(g => g.Id == plugin.SelectedRoomId);
                     if (group != null)
                     {
-                        return $"{group.Name} Hue";
+                        return $"{group.Name} Warmth";
                     }
                 }
-                return "Hue";
+                return "Warmth";
             }
             return "";
         }
 
         protected override BitmapImage GetAdjustmentImage(String actionParameter, PluginImageSize imageSize)
         {
-            return PluginImages.CreateColorWheelImage(imageSize);
+            return PluginImages.CreateWarmthWheelImage(imageSize);
         }
 
         protected override Boolean ProcessEncoderEvent(String actionParameter, DeviceEncoderEvent encoderEvent)
@@ -311,7 +299,7 @@ namespace Loupedeck.LifxPlugin
             }
             else
             {
-                // Main Dial turned: adjust hue
+                // Main Dial turned: adjust warmth
                 this.ApplyAdjustment(actionParameter, encoderEvent.Clicks);
                 return true;
             }
@@ -332,7 +320,7 @@ namespace Loupedeck.LifxPlugin
                 this._localGlobalBrightness += diff * 0.02;
                 this._localGlobalBrightness = Math.Max(0.0, Math.Min(1.0, this._localGlobalBrightness));
                 
-                PluginLog.Info($"[Hue/Brightness] Global Scroll: diff={diff:+0;-0}, target={this._localGlobalBrightness * 100:0}%");
+                PluginLog.Info($"[Warmth/Brightness] Global Scroll: diff={diff:+0;-0}, target={this._localGlobalBrightness * 100:0}%");
 
                 if (this._localGlobalBrightnessCoalescer == null)
                 {
@@ -362,7 +350,7 @@ namespace Loupedeck.LifxPlugin
                     this._localGroupBrightnesses[roomId] = currentVal;
                 }
 
-                PluginLog.Info($"[Hue/Brightness] Group {roomId} Scroll: diff={diff:+0;-0}, target={currentVal * 100:0}%");
+                PluginLog.Info($"[Warmth/Brightness] Group {roomId} Scroll: diff={diff:+0;-0}, target={currentVal * 100:0}%");
 
                 RequestCoalescer coalescer;
                 lock (this._localGroupBrightnessCoalescers)

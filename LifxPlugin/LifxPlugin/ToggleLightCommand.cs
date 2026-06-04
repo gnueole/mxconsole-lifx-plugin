@@ -6,62 +6,18 @@ namespace Loupedeck.LifxPlugin
     public class ToggleLightCommand : PluginDynamicCommand
     {
         public ToggleLightCommand()
-            : base()
+            : base("On/OFf", "Toggle active room or house lights", "LIFX")
         {
         }
 
         protected override bool OnLoad()
         {
-            var plugin = (LifxPlugin)this.Plugin;
-            if (plugin != null)
-            {
-                plugin.GroupsUpdated += this.OnGroupsUpdated;
-
-                // Load groups if already populated
-                if (plugin.Groups.Count > 0)
-                {
-                    this.OnGroupsUpdated(this, EventArgs.Empty);
-                }
-                else
-                {
-                    // Register default "All Lights" parameter
-                    this.AddParameter(string.Empty, "All Lights", "LIFX");
-                }
-            }
             return true;
         }
 
         protected override bool OnUnload()
         {
-            var plugin = (LifxPlugin)this.Plugin;
-            if (plugin != null)
-            {
-                plugin.GroupsUpdated -= this.OnGroupsUpdated;
-            }
             return true;
-        }
-
-        private void OnGroupsUpdated(object sender, EventArgs e)
-        {
-            try
-            {
-                var plugin = (LifxPlugin)this.Plugin;
-                if (plugin == null)
-                {
-                    return;
-                }
-
-                this.RemoveAllParameters();
-
-                // Register global action
-                this.AddParameter(string.Empty, "All Lights", "LIFX");
-
-                this.ParametersChanged();
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error(ex, "Error updating parameters in ToggleLightCommand.OnGroupsUpdated");
-            }
         }
 
         protected override void RunCommand(String actionParameter)
@@ -72,7 +28,14 @@ namespace Loupedeck.LifxPlugin
             {
                 if (string.IsNullOrEmpty(actionParameter))
                 {
-                    await plugin.Client.ToggleLightsAsync();
+                    if (string.IsNullOrEmpty(plugin.SelectedRoomId))
+                    {
+                        await plugin.Client.ToggleLightsAsync();
+                    }
+                    else
+                    {
+                        await plugin.Client.ToggleGroupAsync(plugin.SelectedRoomId);
+                    }
                 }
                 else
                 {
@@ -85,7 +48,7 @@ namespace Loupedeck.LifxPlugin
         {
             if (string.IsNullOrEmpty(actionParameter))
             {
-                return "Toggle\nAll";
+                return "On/OFf";
             }
 
             var plugin = (LifxPlugin)this.Plugin;
@@ -95,6 +58,11 @@ namespace Loupedeck.LifxPlugin
 
         protected override BitmapImage GetCommandImage(String actionParameter, PluginImageSize imageSize)
         {
+            if (string.IsNullOrEmpty(actionParameter))
+            {
+                return PluginImages.CreatePowerButtonImage(imageSize);
+            }
+
             var isGroup = !string.IsNullOrEmpty(actionParameter);
             return PluginImages.CreateBulbButtonImage(imageSize, isGroup);
         }

@@ -123,14 +123,23 @@ namespace Loupedeck.LifxPlugin
                 var payloadString = JsonSerializer.Serialize(payload);
                 var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
 
+                var startTime = DateTime.UtcNow;
+                PluginLog.Info($"LIFX Client: Sending SetBrightnessAsync({brightness * 100:0}%) to all lights...");
                 var response = await this._httpClient.PutAsync("https://api.lifx.com/v1/lights/all/state", content);
+                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
                 if (response.IsSuccessStatusCode)
                 {
-                    PluginLog.Info($"Successfully set LIFX brightness to {brightness * 100:0}%.");
+                    PluginLog.Info($"LIFX Client: SetBrightnessAsync succeeded in {elapsed:0}ms.");
                     return true;
                 }
 
-                PluginLog.Warning($"Failed to set brightness. API returned: {response.StatusCode}");
+                var contentString = await response.Content.ReadAsStringAsync();
+                PluginLog.Warning($"LIFX Client: SetBrightnessAsync failed in {elapsed:0}ms. Status: {response.StatusCode} ({(int)response.StatusCode}). Response: {contentString}");
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    PluginLog.Warning("LIFX Client: Rate limit reached! Please slow down adjustments.");
+                }
                 return false;
             }
             catch (Exception ex)
@@ -262,8 +271,24 @@ namespace Loupedeck.LifxPlugin
                 var payloadString = JsonSerializer.Serialize(payload);
                 var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
 
+                var startTime = DateTime.UtcNow;
+                PluginLog.Info($"LIFX Client: Sending SetGroupBrightnessAsync({brightness * 100:0}%) for group {groupId}...");
                 var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/group_id:{groupId}/state", content);
-                return response.IsSuccessStatusCode;
+                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    PluginLog.Info($"LIFX Client: SetGroupBrightnessAsync succeeded in {elapsed:0}ms.");
+                    return true;
+                }
+
+                var contentString = await response.Content.ReadAsStringAsync();
+                PluginLog.Warning($"LIFX Client: SetGroupBrightnessAsync failed in {elapsed:0}ms. Status: {response.StatusCode} ({(int)response.StatusCode}). Response: {contentString}");
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    PluginLog.Warning("LIFX Client: Rate limit reached! Please slow down adjustments.");
+                }
+                return false;
             }
             catch (Exception ex)
             {
@@ -357,14 +382,23 @@ namespace Loupedeck.LifxPlugin
                 var payloadString = JsonSerializer.Serialize(payload);
                 var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
 
+                var startTime = DateTime.UtcNow;
+                PluginLog.Info($"LIFX Client: Sending SetHueAsync({hue:0.0}) to all lights...");
                 var response = await this._httpClient.PutAsync("https://api.lifx.com/v1/lights/all/state", content);
+                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
                 if (response.IsSuccessStatusCode)
                 {
-                    PluginLog.Info($"Successfully set LIFX hue to {hue:0.0} degrees.");
+                    PluginLog.Info($"LIFX Client: SetHueAsync succeeded in {elapsed:0}ms.");
                     return true;
                 }
 
-                PluginLog.Warning($"Failed to set hue. API returned: {response.StatusCode}");
+                var contentString = await response.Content.ReadAsStringAsync();
+                PluginLog.Warning($"LIFX Client: SetHueAsync failed in {elapsed:0}ms. Status: {response.StatusCode} ({(int)response.StatusCode}). Response: {contentString}");
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    PluginLog.Warning("LIFX Client: Rate limit reached! Please slow down adjustments.");
+                }
                 return false;
             }
             catch (Exception ex)
@@ -438,14 +472,274 @@ namespace Loupedeck.LifxPlugin
                 var payloadString = JsonSerializer.Serialize(payload);
                 var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
 
+                var startTime = DateTime.UtcNow;
+                PluginLog.Info($"LIFX Client: Sending SetGroupHueAsync({hue:0.0}) for group {groupId}...");
                 var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/group_id:{groupId}/state", content);
-                return response.IsSuccessStatusCode;
+                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    PluginLog.Info($"LIFX Client: SetGroupHueAsync succeeded in {elapsed:0}ms.");
+                    return true;
+                }
+
+                var contentString = await response.Content.ReadAsStringAsync();
+                PluginLog.Warning($"LIFX Client: SetGroupHueAsync failed in {elapsed:0}ms. Status: {response.StatusCode} ({(int)response.StatusCode}). Response: {contentString}");
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    PluginLog.Warning("LIFX Client: Rate limit reached! Please slow down adjustments.");
+                }
+                return false;
             }
             catch (Exception ex)
             {
                 PluginLog.Error(ex, $"Failed to set hue for group {groupId}.");
                 return false;
             }
+        }
+
+        public async Task<int> GetTemperatureAsync()
+        {
+            if (!this.HasToken)
+            {
+                return 3500;
+            }
+
+            try
+            {
+                var responseJson = await this._httpClient.GetStringAsync("https://api.lifx.com/v1/lights/all");
+                using var document = JsonDocument.Parse(responseJson);
+
+                if (document.RootElement.ValueKind == JsonValueKind.Array && document.RootElement.GetArrayLength() > 0)
+                {
+                    foreach (var element in document.RootElement.EnumerateArray())
+                    {
+                        if (element.TryGetProperty("connected", out var connectedProp) && connectedProp.GetBoolean())
+                        {
+                            if (element.TryGetProperty("color", out var colorProp) && colorProp.ValueKind == JsonValueKind.Object)
+                            {
+                                if (colorProp.TryGetProperty("kelvin", out var kelvinProp))
+                                {
+                                    return kelvinProp.GetInt32();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, "Failed to retrieve current LIFX temperature.");
+            }
+
+            return 3500;
+        }
+
+        public async Task<bool> SetTemperatureAsync(int kelvin)
+        {
+            if (!this.HasToken)
+            {
+                PluginLog.Warning("Cannot set temperature: LIFX token is not configured.");
+                return false;
+            }
+
+            try
+            {
+                kelvin = Math.Max(1500, Math.Min(9000, kelvin));
+
+                var payload = new { color = $"kelvin:{kelvin}", power = "on" };
+                var payloadString = JsonSerializer.Serialize(payload);
+                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
+
+                var startTime = DateTime.UtcNow;
+                PluginLog.Info($"LIFX Client: Sending SetTemperatureAsync({kelvin}K) to all lights...");
+                var response = await this._httpClient.PutAsync("https://api.lifx.com/v1/lights/all/state", content);
+                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    PluginLog.Info($"LIFX Client: SetTemperatureAsync succeeded in {elapsed:0}ms.");
+                    return true;
+                }
+
+                var contentString = await response.Content.ReadAsStringAsync();
+                PluginLog.Warning($"LIFX Client: SetTemperatureAsync failed in {elapsed:0}ms. Status: {response.StatusCode}. Response: {contentString}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, "HTTP request to set LIFX temperature failed.");
+                return false;
+            }
+        }
+
+        public async Task<int> GetGroupTemperatureAsync(string groupId)
+        {
+            if (!this.HasToken)
+            {
+                return 3500;
+            }
+
+            try
+            {
+                var responseJson = await this._httpClient.GetStringAsync("https://api.lifx.com/v1/lights/all");
+                using var document = JsonDocument.Parse(responseJson);
+
+                if (document.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    double sum = 0;
+                    int count = 0;
+                    foreach (var element in document.RootElement.EnumerateArray())
+                    {
+                        if (element.TryGetProperty("group", out var groupProp) && groupProp.ValueKind == JsonValueKind.Object)
+                        {
+                            if (groupProp.TryGetProperty("id", out var idProp) && idProp.GetString() == groupId)
+                            {
+                                if (element.TryGetProperty("connected", out var connectedProp) && connectedProp.GetBoolean())
+                                {
+                                    if (element.TryGetProperty("color", out var colorProp) && colorProp.ValueKind == JsonValueKind.Object)
+                                    {
+                                        if (colorProp.TryGetProperty("kelvin", out var kelvinProp))
+                                        {
+                                            sum += kelvinProp.GetInt32();
+                                            count++;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (count > 0)
+                    {
+                        return (int)Math.Round(sum / count);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, $"Failed to retrieve temperature for group {groupId}.");
+            }
+
+            return 3500;
+        }
+
+        public async Task<bool> SetGroupTemperatureAsync(string groupId, int kelvin)
+        {
+            if (!this.HasToken)
+            {
+                return false;
+            }
+
+            try
+            {
+                kelvin = Math.Max(1500, Math.Min(9000, kelvin));
+                var payload = new { color = $"kelvin:{kelvin}", power = "on" };
+                var payloadString = JsonSerializer.Serialize(payload);
+                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
+
+                var startTime = DateTime.UtcNow;
+                PluginLog.Info($"LIFX Client: Sending SetGroupTemperatureAsync({kelvin}K) for group {groupId}...");
+                var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/group_id:{groupId}/state", content);
+                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    PluginLog.Info($"LIFX Client: SetGroupTemperatureAsync succeeded in {elapsed:0}ms.");
+                    return true;
+                }
+
+                var contentString = await response.Content.ReadAsStringAsync();
+                PluginLog.Warning($"LIFX Client: SetGroupTemperatureAsync failed in {elapsed:0}ms. Status: {response.StatusCode}. Response: {contentString}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, $"Failed to set temperature for group {groupId}.");
+                return false;
+            }
+        }
+    }
+
+    public class RequestCoalescer
+    {
+        private readonly Func<Task> _action;
+        private readonly int _delayMs;
+        private System.Threading.CancellationTokenSource _cts;
+        private readonly object _lock = new object();
+        private bool _isRunning;
+        private bool _hasPending;
+
+        public RequestCoalescer(Func<Task> action, int delayMs = 350)
+        {
+            this._action = action;
+            this._delayMs = delayMs;
+        }
+
+        public void Trigger()
+        {
+            lock (this._lock)
+            {
+                if (this._cts != null)
+                {
+                    this._cts.Cancel();
+                    this._cts.Dispose();
+                }
+
+                this._cts = new System.Threading.CancellationTokenSource();
+                var token = this._cts.Token;
+
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(this._delayMs, token);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        return;
+                    }
+
+                    this.ExecuteAction();
+                });
+            }
+        }
+
+        private void ExecuteAction()
+        {
+            lock (this._lock)
+            {
+                if (this._isRunning)
+                {
+                    this._hasPending = true;
+                    return;
+                }
+                this._isRunning = true;
+            }
+
+            Task.Run(async () =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        await this._action();
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error(ex, "Error in throttled request execution.");
+                    }
+
+                    lock (this._lock)
+                    {
+                        if (!this._hasPending)
+                        {
+                            this._isRunning = false;
+                            break;
+                        }
+                        this._hasPending = false;
+                    }
+                }
+            });
         }
     }
 }

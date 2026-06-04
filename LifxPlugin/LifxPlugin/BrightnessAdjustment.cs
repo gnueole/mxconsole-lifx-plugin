@@ -12,8 +12,12 @@ namespace Loupedeck.LifxPlugin
         private readonly Dictionary<string, double> _groupBrightnesses = new Dictionary<string, double>();
         private readonly HashSet<string> _initializedGroups = new HashSet<string>();
 
+        // Coalescers prevent overlapping HTTP calls when dial spins fast
+        private RequestCoalescer _globalCoalescer;
+        private readonly Dictionary<string, RequestCoalescer> _groupCoalescers = new Dictionary<string, RequestCoalescer>();
+
         public BrightnessAdjustment()
-            : base(displayName: "Brightness", description: "Adjust room or light brightness", groupName: "LIFX", hasReset: true)
+            : base(displayName: "All Brightness", description: "Adjust room or light brightness", groupName: "LIFX", hasReset: true)
         {
         }
 
@@ -81,12 +85,17 @@ namespace Loupedeck.LifxPlugin
                 this._cachedBrightness += diff * 0.02;
                 this._cachedBrightness = Math.Max(0.0, Math.Min(1.0, this._cachedBrightness));
 
+                PluginLog.Info($"[Brightness/All] diff={diff:+0;-0}, target={this._cachedBrightness * 100:0}%");
                 this.AdjustmentValueChanged();
 
-                Task.Run(async () =>
+                if (this._globalCoalescer == null)
                 {
-                    await plugin.Client.SetBrightnessAsync(this._cachedBrightness);
-                });
+                    this._globalCoalescer = new RequestCoalescer(async () =>
+                    {
+                        await plugin.Client.SetBrightnessAsync(this._cachedBrightness);
+                    });
+                }
+                this._globalCoalescer.Trigger();
             }
             else
             {
@@ -108,12 +117,28 @@ namespace Loupedeck.LifxPlugin
                     this._groupBrightnesses[actionParameter] = currentVal;
                 }
 
+                PluginLog.Info($"[Brightness/Group {actionParameter}] diff={diff:+0;-0}, target={currentVal * 100:0}%");
                 this.AdjustmentValueChanged(actionParameter);
 
-                Task.Run(async () =>
+                RequestCoalescer coalescer;
+                lock (this._groupCoalescers)
                 {
-                    await plugin.Client.SetGroupBrightnessAsync(actionParameter, currentVal);
-                });
+                    if (!this._groupCoalescers.TryGetValue(actionParameter, out coalescer))
+                    {
+                        var capturedParam = actionParameter;
+                        coalescer = new RequestCoalescer(async () =>
+                        {
+                            double val;
+                            lock (this._groupBrightnesses)
+                            {
+                                this._groupBrightnesses.TryGetValue(capturedParam, out val);
+                            }
+                            await plugin.Client.SetGroupBrightnessAsync(capturedParam, val);
+                        });
+                        this._groupCoalescers[actionParameter] = coalescer;
+                    }
+                }
+                coalescer.Trigger();
             }
         }
 
@@ -207,6 +232,23 @@ namespace Loupedeck.LifxPlugin
                 }
                 return $"{Math.Round(val * 100)}%";
             }
+        }
+
+        protected override BitmapImage GetAdjustmentImage(String actionParameter, PluginImageSize imageSize)
+        {
+            return PluginImages.CreateBrightnessGaugeImage(imageSize);
+        }
+
+        protected override BitmapImage GetCommandImage(String actionParameter, PluginImageSize imageSize)
+        {
+            var isGroup = !string.IsNullOrEmpty(actionParameter);
+            return PluginImages.CreateBulbButtonImage(imageSize, isGroup, PluginImages.PurpleColor, PluginImages.BlackColor);
+        }
+
+        protected override Boolean ProcessEncoderEvent(String actionParameter, DeviceEncoderEvent encoderEvent)
+        {
+            this.ApplyAdjustment(actionParameter, encoderEvent.Clicks);
+            return true;
         }
     }
 }

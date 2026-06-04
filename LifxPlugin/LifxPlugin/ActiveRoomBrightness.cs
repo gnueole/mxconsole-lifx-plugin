@@ -12,6 +12,10 @@ namespace Loupedeck.LifxPlugin
         private readonly Dictionary<string, double> _groupBrightnesses = new Dictionary<string, double>();
         private readonly HashSet<string> _initializedGroups = new HashSet<string>();
 
+        // Coalescers prevent overlapping HTTP calls when dial spins fast
+        private RequestCoalescer _globalCoalescer;
+        private readonly Dictionary<string, RequestCoalescer> _groupCoalescers = new Dictionary<string, RequestCoalescer>();
+
         public ActiveRoomBrightness()
             : base(displayName: "Active Brightness", description: "Adjust brightness of active room", groupName: "LIFX", hasReset: true)
         {
@@ -41,6 +45,22 @@ namespace Loupedeck.LifxPlugin
         {
             try
             {
+                var plugin = (LifxPlugin)this.Plugin;
+                if (plugin != null)
+                {
+                    var roomId = plugin.SelectedRoomId;
+                    lock (this._initializedGroups)
+                    {
+                        if (!string.IsNullOrEmpty(roomId))
+                        {
+                            this._initializedGroups.Remove(roomId);
+                        }
+                        else
+                        {
+                            this._globalInitialized = false;
+                        }
+                    }
+                }
                 this.AdjustmentValueChanged();
             }
             catch (Exception ex)
@@ -64,13 +84,19 @@ namespace Loupedeck.LifxPlugin
                 // Global brightness adjustment
                 this._globalBrightness += diff * 0.02;
                 this._globalBrightness = Math.Max(0.0, Math.Min(1.0, this._globalBrightness));
+                var targetBrightness = this._globalBrightness;
 
+                PluginLog.Info($"[Brightness] Global: diff={diff:+0;-0}, target={targetBrightness * 100:0}%");
                 this.AdjustmentValueChanged();
 
-                Task.Run(async () =>
+                if (this._globalCoalescer == null)
                 {
-                    await plugin.Client.SetBrightnessAsync(this._globalBrightness);
-                });
+                    this._globalCoalescer = new RequestCoalescer(async () =>
+                    {
+                        await plugin.Client.SetBrightnessAsync(this._globalBrightness);
+                    });
+                }
+                this._globalCoalescer.Trigger();
             }
             else
             {
@@ -92,12 +118,28 @@ namespace Loupedeck.LifxPlugin
                     this._groupBrightnesses[roomId] = currentVal;
                 }
 
+                PluginLog.Info($"[Brightness] Group {roomId}: diff={diff:+0;-0}, target={currentVal * 100:0}%");
                 this.AdjustmentValueChanged();
 
-                Task.Run(async () =>
+                RequestCoalescer coalescer;
+                lock (this._groupCoalescers)
                 {
-                    await plugin.Client.SetGroupBrightnessAsync(roomId, currentVal);
-                });
+                    if (!this._groupCoalescers.TryGetValue(roomId, out coalescer))
+                    {
+                        var capturedRoomId = roomId;
+                        coalescer = new RequestCoalescer(async () =>
+                        {
+                            double val;
+                            lock (this._groupBrightnesses)
+                            {
+                                this._groupBrightnesses.TryGetValue(capturedRoomId, out val);
+                            }
+                            await plugin.Client.SetGroupBrightnessAsync(capturedRoomId, val);
+                        });
+                        this._groupCoalescers[roomId] = coalescer;
+                    }
+                }
+                coalescer.Trigger();
             }
         }
 
@@ -115,12 +157,10 @@ namespace Loupedeck.LifxPlugin
             {
                 // Reset global brightness to 100%
                 this._globalBrightness = 1.0;
+                PluginLog.Info("[Brightness] Reset global brightness to 100%");
                 this.AdjustmentValueChanged();
 
-                Task.Run(async () =>
-                {
-                    await plugin.Client.SetBrightnessAsync(this._globalBrightness);
-                });
+                Task.Run(async () => await plugin.Client.SetBrightnessAsync(1.0));
             }
             else
             {
@@ -130,12 +170,10 @@ namespace Loupedeck.LifxPlugin
                     this._groupBrightnesses[roomId] = 1.0;
                 }
 
+                PluginLog.Info($"[Brightness] Reset group {roomId} brightness to 100%");
                 this.AdjustmentValueChanged();
 
-                Task.Run(async () =>
-                {
-                    await plugin.Client.SetGroupBrightnessAsync(roomId, 1.0);
-                });
+                Task.Run(async () => await plugin.Client.SetGroupBrightnessAsync(roomId, 1.0));
             }
         }
 
@@ -225,7 +263,22 @@ namespace Loupedeck.LifxPlugin
 
         protected override BitmapImage GetAdjustmentImage(String actionParameter, PluginImageSize imageSize)
         {
-            return PluginImages.CreateBrightnessGaugeImage(imageSize, "Bright");
+            return PluginImages.CreateBrightnessGaugeImage(imageSize);
+        }
+
+        protected override BitmapImage GetCommandImage(String actionParameter, PluginImageSize imageSize)
+        {
+            var plugin = (LifxPlugin)this.Plugin;
+            var isGroup = plugin != null && !string.IsNullOrEmpty(plugin.SelectedRoomId);
+            return PluginImages.CreateBulbButtonImage(imageSize, isGroup, PluginImages.PurpleColor, PluginImages.BlackColor);
+        }
+
+        protected override Boolean ProcessEncoderEvent(String actionParameter, DeviceEncoderEvent encoderEvent)
+        {
+            // Both the Roller (vertical scroll, ControlId 41/0) and the Contextual Dial (ControlId 42/1)
+            // will adjust the brightness in this mode.
+            this.ApplyAdjustment(actionParameter, encoderEvent.Clicks);
+            return true;
         }
     }
 }
