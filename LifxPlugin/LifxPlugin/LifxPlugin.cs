@@ -52,7 +52,7 @@ namespace Loupedeck.LifxPlugin
                 this.Client = new LifxClient();
                 if (!this.Client.HasToken)
                 {
-                    PluginLog.Warning("LIFX API Token was not found. Please configure a file at ~/.lifx_token with your token.");
+                    PluginLog.Warning("LIFX API Token was not found. Please create a text file named 'LIFX_Token.txt' in your Documents folder with your token.");
                 }
                 else
                 {

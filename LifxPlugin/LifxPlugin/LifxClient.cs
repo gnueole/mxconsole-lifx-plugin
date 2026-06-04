@@ -23,18 +23,29 @@ namespace Loupedeck.LifxPlugin
         {
             try
             {
-                // Retrieve UserProfile directory (e.g. C:\Users\username on Windows, /home/username on Linux)
-                var userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                var tokenFilePath = Path.Combine(userProfilePath, ".lifx_token");
+                // First try Documents/LIFX_Token.txt (user-friendly location)
+                var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                var documentsTokenPath = Path.Combine(documentsPath, "LIFX_Token.txt");
 
-                if (File.Exists(tokenFilePath))
+                if (File.Exists(documentsTokenPath))
                 {
-                    this._token = File.ReadAllText(tokenFilePath).Trim();
+                    this._token = File.ReadAllText(documentsTokenPath).Trim();
+                }
+                else
+                {
+                    // Fallback to UserProfile/.lifx_token (developer/power-user location)
+                    var userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    var userProfileTokenPath = Path.Combine(userProfilePath, ".lifx_token");
+
+                    if (File.Exists(userProfileTokenPath))
+                    {
+                        this._token = File.ReadAllText(userProfileTokenPath).Trim();
+                    }
                 }
             }
             catch (Exception ex)
             {
-                PluginLog.Error(ex, "Failed to load LIFX token from ~/.lifx_token");
+                PluginLog.Error(ex, "Failed to load LIFX token from Documents/LIFX_Token.txt or ~/.lifx_token");
             }
 
             this._httpClient = new HttpClient();

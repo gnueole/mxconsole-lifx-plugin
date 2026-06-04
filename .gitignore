@@ -15,5 +15,6 @@
 .idea/
 *.suo
 *.ntvs*
-*.njsproj
-*.sln.docstates
+# Generated packages
+*.lplug4
+
