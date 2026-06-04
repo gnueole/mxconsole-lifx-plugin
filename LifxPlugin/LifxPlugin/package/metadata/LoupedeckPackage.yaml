@@ -20,6 +20,8 @@ pluginFileName: LifxPlugin.dll
 # Plugin version.
 version: 1.0
 
+
+
 # Author of the plugin. The author can be a company or an individual developer.
 author: Éole
 
