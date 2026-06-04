@@ -16,24 +16,24 @@ For creators, developers, and designers, lighting is not just utility—it is pa
 
 ---
 
-### 🚀 Key Selling Points (The "Why")
+### ⚙️ Core Technical Features
 
-1. **Unparalleled Tactile Control**
-   * Control power state, brightness, warmth, and color using the MX Creative Console's dials, rollers, and LCD screen keys.
-   * Fine-grained, real-time responses rather than stepping through rigid smartphone app menus.
+1. **Direct Tactile Control Mapping**
+   * Translates dial rotation events, key presses, and custom screen drawing directly to corresponding API operations.
+   * Maps physical dials to granular increments for brightness, kelvin temperature, and hue angles.
 
-2. **The "Active Room" Selector Paradigm (Smart UI Design)**
-   * Avoids cluttering the console with separate keys for every room.
-   * Users configure **Selector Keys** representing rooms (e.g., *Studio*, *Living Room*, *Office*).
-   * Selecting a room illuminates its LCD key in signature **LIFX Purple** (`#8200FF`).
-   * Once selected, general-purpose adjustments (like the main Dial or the Reset button) immediately route their actions to that active room.
+2. **Stateful "Active Target" Routing**
+   * Employs an active room/group pointer within the plugin lifecycle to route general adjustments (e.g. brightness dial, color reset) dynamically.
+   * Saves hardware layout real estate by allowing a single set of dial controls to apply to any dynamically selected room.
+   * Selected target status is reflected visually on screen keys via dynamic color fill (`#8200FF` background).
 
-3. **Premium Built-in Visuals**
-   * Completely customized dynamic rendering engine.
-   * Screen keys draw custom high-resolution icons (radial color wheels, symmetrical brightness arcs, warmth temperature gradients) tailored to blend beautifully with the Logitech design language.
+3. **Dynamic Canvas Rendering Engine**
+   * Draws vector shapes (hue wheel arcs, symmetrical brightness sweeps, warmth gradients) directly onto a drawing context using the SDK's rendering primitives.
+   * Renders real-time visual state adjustments without relying on static, pre-rendered asset files.
 
-4. **Engineered for Responsiveness**
-   * Built with asynchronous background API client handling. Dials and wheels never block the console's UI thread, ensuring zero dial latency and an extremely premium hardware feel.
+4. **Non-Blocking Asynchronous Execution**
+   * Offloads all HTTP communication with the LIFX Cloud API to background tasks.
+   * Isolates physical input events from network roundtrip latency, preventing input lock-ups or console UI thread hangs.
 
 ---
 
