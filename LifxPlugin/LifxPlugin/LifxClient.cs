@@ -669,6 +669,128 @@ namespace Loupedeck.LifxPlugin
                 return false;
             }
         }
+
+        public async Task<bool> PlayBreatheEffectAsync(string color, string groupId = null)
+        {
+            if (!this.HasToken)
+            {
+                PluginLog.Warning("Cannot play breathe effect: LIFX token is not configured.");
+                return false;
+            }
+
+            try
+            {
+                var selector = string.IsNullOrEmpty(groupId) ? "all" : $"group_id:{groupId}";
+                var payload = new 
+                { 
+                    color = color,
+                    period = 2.0,
+                    cycles = 10.0,
+                    persist = false,
+                    power_on = true
+                };
+                var payloadString = JsonSerializer.Serialize(payload);
+                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
+
+                PluginLog.Info($"LIFX Client: Triggering breathe effect ({color}) for selector {selector}...");
+                var response = await this._httpClient.PostAsync($"https://api.lifx.com/v1/lights/{selector}/effects/breathe", content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    PluginLog.Info("Successfully triggered breathe effect.");
+                    return true;
+                }
+
+                var contentString = await response.Content.ReadAsStringAsync();
+                PluginLog.Warning($"Failed to trigger breathe effect. API returned: {response.StatusCode}. Response: {contentString}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, $"Failed to trigger breathe effect for group/selector {groupId ?? "all"}.");
+                return false;
+            }
+        }
+
+        public async Task<bool> PlayPulseEffectAsync(string color, string groupId = null)
+        {
+            if (!this.HasToken)
+            {
+                PluginLog.Warning("Cannot play pulse effect: LIFX token is not configured.");
+                return false;
+            }
+
+            try
+            {
+                var selector = string.IsNullOrEmpty(groupId) ? "all" : $"group_id:{groupId}";
+                var payload = new 
+                { 
+                    color = color,
+                    period = 1.0,
+                    cycles = 10.0,
+                    persist = false,
+                    power_on = true
+                };
+                var payloadString = JsonSerializer.Serialize(payload);
+                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
+
+                PluginLog.Info($"LIFX Client: Triggering pulse effect ({color}) for selector {selector}...");
+                var response = await this._httpClient.PostAsync($"https://api.lifx.com/v1/lights/{selector}/effects/pulse", content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    PluginLog.Info("Successfully triggered pulse effect.");
+                    return true;
+                }
+
+                var contentString = await response.Content.ReadAsStringAsync();
+                PluginLog.Warning($"Failed to trigger pulse effect. API returned: {response.StatusCode}. Response: {contentString}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, $"Failed to trigger pulse effect for group/selector {groupId ?? "all"}.");
+                return false;
+            }
+        }
+
+        public async Task<bool> StopEffectsAsync(string groupId = null)
+        {
+            if (!this.HasToken)
+            {
+                PluginLog.Warning("Cannot stop effects: LIFX token is not configured.");
+                return false;
+            }
+
+            try
+            {
+                var selector = string.IsNullOrEmpty(groupId) ? "all" : $"group_id:{groupId}";
+                var payload = new 
+                { 
+                    power_off = false
+                };
+                var payloadString = JsonSerializer.Serialize(payload);
+                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
+
+                PluginLog.Info($"LIFX Client: Stopping effects for selector {selector}...");
+                var response = await this._httpClient.PostAsync($"https://api.lifx.com/v1/lights/{selector}/effects/off", content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    PluginLog.Info("Successfully stopped effects.");
+                    return true;
+                }
+
+                var contentString = await response.Content.ReadAsStringAsync();
+                PluginLog.Warning($"Failed to stop effects. API returned: {response.StatusCode}. Response: {contentString}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, $"Failed to stop effects for group/selector {groupId ?? "all"}.");
+                return false;
+            }
+        }
     }
 
     public class RequestCoalescer
