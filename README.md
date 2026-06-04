@@ -59,3 +59,10 @@ To deploy the plugin locally on Windows:
 2. Click **Customize Keys** to open the customization panel.
 3. Close the Plugins Manager to return to the **Action Picker** on the right side.
 4. Click **`ALL ACTIONS`** at the top of the picker, locate the **LIFX** category, and drag and drop actions (Toggle and Brightness) onto your dial or button keys.
+
+---
+
+## Disclaimer
+
+This is an unofficial, independent plugin developed using Google DeepMind's **Antigravity** AI coding assistant. It is not affiliated with, authorized, maintained, sponsored, or endorsed by Logitech, Loupedeck, or LIFX. All product and company names are trademarks™ or registered® trademarks of their respective holders.
+
