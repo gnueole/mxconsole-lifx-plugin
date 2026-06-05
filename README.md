@@ -67,6 +67,7 @@ You can use the provided `Makefile` to automate building, deploying, and restart
   * `make build`: Only compiles the C# solution (verifies that the .NET SDK is installed first).
   * `make deploy`: Cleans the Windows plugin AppData directory and copies compiled dlls.
   * `make restart`: Restarts the Logitech LogiPluginService on Windows.
+  * `make publish`: Packages the plugin as a `.lproj4` archive and saves it to the Windows Downloads directory.
   * `make clean`: Cleans build artifacts.
 
 ### 3. Assign Actions
