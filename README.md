@@ -51,33 +51,25 @@ To enable the plugin to talk to your lights, you need to provide your Personal A
      echo "your_lifx_token_here" > "/mnt/c/Users/YOUR_USERNAME/.lifx_token"
      ```
 
-### 2. Build the Plugin
-Compile the C# solution using .NET 8.0 SDK:
-```bash
-# Run this inside your workspace
-/home/eole/.dotnet/dotnet build LifxPlugin/LifxPlugin.sln \
-  -p:PluginApiDir="/mnt/c/Program Files/Logi/LogiPluginService/" \
-  -p:PluginDir="/home/eole/projects/actions-sdk/LifxPlugin/build_links/"
-```
+### 2. Build and Deploy the Plugin
+You can use the provided `Makefile` to automate building, deploying, and restarting the service:
 
-### 3. Deploy and Run
-To deploy the plugin locally on Windows:
-1. Copy the compiled `bin/` and `metadata/` directories into a new plugin directory in Options+:
-   ```bash
-   # Remove any old version and create the target folder
-   rm -rf "/mnt/c/Users/YOUR_USERNAME/AppData/Local/Logi/LogiPluginService/Plugins/Lifx"
-   mkdir -p "/mnt/c/Users/YOUR_USERNAME/AppData/Local/Logi/LogiPluginService/Plugins/Lifx"
-   
-   # Copy build directories
-   cp -r LifxPlugin/LifxPlugin/Debug/bin "/mnt/c/Users/YOUR_USERNAME/AppData/Local/Logi/LogiPluginService/Plugins/Lifx/"
-   cp -r LifxPlugin/LifxPlugin/Debug/metadata "/mnt/c/Users/YOUR_USERNAME/AppData/Local/Logi/LogiPluginService/Plugins/Lifx/"
-   ```
-2. Restart the **LogiPluginService** on Windows to apply the plugin:
-   ```bash
-   powershell.exe -Command "Stop-Process -Name LogiPluginService -Force; Start-Process -FilePath 'C:\Program Files\Logi\LogiPluginService\LogiPluginService.exe'"
-   ```
+* **Install the .NET 8.0 SDK** (if you don't have it installed in `/home/eole/.dotnet`):
+  ```bash
+  make prepare
+  ```
+* **Build, deploy, and restart** the LogiPluginService on Windows in one command:
+  ```bash
+  make
+  ```
+* **Individual Makefile targets**:
+  * `make status`: View the current build environment configuration (dotNET path, detected Windows username, target directories).
+  * `make build`: Only compiles the C# solution (verifies that the .NET SDK is installed first).
+  * `make deploy`: Cleans the Windows plugin AppData directory and copies compiled dlls.
+  * `make restart`: Restarts the Logitech LogiPluginService on Windows.
+  * `make clean`: Cleans build artifacts.
 
-### 4. Assign Actions
+### 3. Assign Actions
 1. Open **Logi Options+** on Windows and select the **MX Creative Keypad**.
 2. Click **Customize Keys** to open the customization panel.
 3. Close the Plugins Manager to return to the **Action Picker** on the right side.
