@@ -102,7 +102,7 @@ namespace Loupedeck.LifxPlugin
                 return;
             }
 
-            var roomId = plugin.SelectedRoomId;
+            var roomId = plugin.ActiveSelector;
 
             if (string.IsNullOrEmpty(roomId))
             {
@@ -177,7 +177,7 @@ namespace Loupedeck.LifxPlugin
                 return;
             }
 
-            var roomId = plugin.SelectedRoomId;
+            var roomId = plugin.ActiveSelector;
 
             if (string.IsNullOrEmpty(roomId))
             {
@@ -208,7 +208,7 @@ namespace Loupedeck.LifxPlugin
                 return "3500K";
             }
 
-            var roomId = plugin.SelectedRoomId;
+            var roomId = plugin.ActiveSelector;
 
             if (string.IsNullOrEmpty(roomId))
             {
@@ -326,7 +326,7 @@ namespace Loupedeck.LifxPlugin
                 return;
             }
 
-            var roomId = plugin.SelectedRoomId;
+            var roomId = plugin.ActiveSelector;
 
             if (string.IsNullOrEmpty(roomId))
             {

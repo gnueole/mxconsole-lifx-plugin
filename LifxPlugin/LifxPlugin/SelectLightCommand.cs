@@ -84,15 +84,7 @@ namespace Loupedeck.LifxPlugin
                 return;
             }
 
-            if (plugin.SelectedLightId == actionParameter)
-            {
-                plugin.SelectedLightId = null;
-            }
-            else
-            {
-                plugin.SelectedLightId = actionParameter;
-            }
-
+            plugin.ToggleLightSelection(actionParameter);
             plugin.TriggerManualRefresh();
         }
 
@@ -126,7 +118,7 @@ namespace Loupedeck.LifxPlugin
                 return PluginImages.CreateLightTypeButtonImage(imageSize, type, false, null, null, true);
             }
 
-            if (plugin.SelectedLightId == actionParameter)
+            if (plugin.SelectedLightIds.Contains(actionParameter))
             {
                 // Active/Selected state: Purple background, Black icon
                 return PluginImages.CreateLightTypeButtonImage(imageSize, type, false, PluginImages.BlackColor, PluginImages.PurpleColor, false);

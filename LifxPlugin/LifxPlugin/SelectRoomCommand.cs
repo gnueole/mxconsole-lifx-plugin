@@ -86,15 +86,8 @@ namespace Loupedeck.LifxPlugin
                 return;
             }
 
-            if (plugin.SelectedRoomId == actionParameter)
-            {
-                // Toggle off (deselect, returning to "All Lights")
-                plugin.SelectedRoomId = null;
-            }
-            else
-            {
-                plugin.SelectedRoomId = actionParameter;
-            }
+            plugin.ToggleRoomSelection(actionParameter);
+            plugin.TriggerManualRefresh();
         }
 
         protected override String GetCommandDisplayName(String actionParameter, PluginImageSize imageSize)
@@ -113,7 +106,7 @@ namespace Loupedeck.LifxPlugin
         {
             var plugin = (LifxPlugin)this.Plugin;
 
-            if (plugin != null && plugin.SelectedRoomId == actionParameter)
+            if (plugin != null && plugin.SelectedRoomIds.Contains(actionParameter))
             {
                 // Active/Selected state: Purple background, Black icon
                 return PluginImages.CreateBulbButtonImage(imageSize, true, PluginImages.BlackColor, PluginImages.PurpleColor);

@@ -22,39 +22,36 @@ namespace Loupedeck.LifxPlugin
         public event EventHandler ScenesUpdated;
         public event EventHandler LightsUpdated;
 
-        private string _selectedRoomId = null;
+        public System.Collections.Generic.HashSet<string> SelectedRoomIds { get; } = new System.Collections.Generic.HashSet<string>();
+        public System.Collections.Generic.HashSet<string> SelectedLightIds { get; } = new System.Collections.Generic.HashSet<string>();
+
+        // For backward compatibility
         public string SelectedRoomId
         {
-            get => this._selectedRoomId;
+            get => this.SelectedRoomIds.Count > 0 ? new System.Collections.Generic.List<string>(this.SelectedRoomIds)[0] : null;
             set
             {
-                if (this._selectedRoomId != value)
+                this.SelectedRoomIds.Clear();
+                if (value != null)
                 {
-                    this._selectedRoomId = value;
-                    if (value != null)
-                    {
-                        this._selectedLightId = null; // Mutual exclusion
-                    }
-                    this.SelectionUpdated?.Invoke(this, EventArgs.Empty);
+                    this.SelectedRoomIds.Add(value);
                 }
+                this.SelectionUpdated?.Invoke(this, EventArgs.Empty);
             }
         }
 
-        private string _selectedLightId = null;
+        // For backward compatibility
         public string SelectedLightId
         {
-            get => this._selectedLightId;
+            get => this.SelectedLightIds.Count > 0 ? new System.Collections.Generic.List<string>(this.SelectedLightIds)[0] : null;
             set
             {
-                if (this._selectedLightId != value)
+                this.SelectedLightIds.Clear();
+                if (value != null)
                 {
-                    this._selectedLightId = value;
-                    if (value != null)
-                    {
-                        this._selectedRoomId = null; // Mutual exclusion
-                    }
-                    this.SelectionUpdated?.Invoke(this, EventArgs.Empty);
+                    this.SelectedLightIds.Add(value);
                 }
+                this.SelectionUpdated?.Invoke(this, EventArgs.Empty);
             }
         }
 
@@ -62,19 +59,51 @@ namespace Loupedeck.LifxPlugin
         {
             get
             {
-                if (!string.IsNullOrEmpty(this.SelectedLightId))
+                var selectors = new System.Collections.Generic.List<string>();
+                foreach (var lightId in this.SelectedLightIds)
                 {
-                    return $"id:{this.SelectedLightId}";
+                    selectors.Add($"id:{lightId}");
                 }
-                if (!string.IsNullOrEmpty(this.SelectedRoomId))
+                foreach (var roomId in this.SelectedRoomIds)
                 {
-                    return $"group_id:{this.SelectedRoomId}";
+                    selectors.Add($"group_id:{roomId}");
+                }
+
+                if (selectors.Count > 0)
+                {
+                    return string.Join(",", selectors);
                 }
                 return null;
             }
         }
 
         public event EventHandler SelectionUpdated;
+
+        public void ToggleRoomSelection(string roomId)
+        {
+            if (this.SelectedRoomIds.Contains(roomId))
+            {
+                this.SelectedRoomIds.Remove(roomId);
+            }
+            else
+            {
+                this.SelectedRoomIds.Add(roomId);
+            }
+            this.SelectionUpdated?.Invoke(this, EventArgs.Empty);
+        }
+
+        public void ToggleLightSelection(string lightId)
+        {
+            if (this.SelectedLightIds.Contains(lightId))
+            {
+                this.SelectedLightIds.Remove(lightId);
+            }
+            else
+            {
+                this.SelectedLightIds.Add(lightId);
+            }
+            this.SelectionUpdated?.Invoke(this, EventArgs.Empty);
+        }
 
         private double _effectPeriod = 2.0;
         public double EffectPeriod

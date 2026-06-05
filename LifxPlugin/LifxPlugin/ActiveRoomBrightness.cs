@@ -77,7 +77,7 @@ namespace Loupedeck.LifxPlugin
                 return;
             }
 
-            var roomId = plugin.SelectedRoomId;
+            var roomId = plugin.ActiveSelector;
 
             if (string.IsNullOrEmpty(roomId))
             {
@@ -151,7 +151,7 @@ namespace Loupedeck.LifxPlugin
                 return;
             }
 
-            var roomId = plugin.SelectedRoomId;
+            var roomId = plugin.ActiveSelector;
 
             if (string.IsNullOrEmpty(roomId))
             {
@@ -185,7 +185,7 @@ namespace Loupedeck.LifxPlugin
                 return "50%";
             }
 
-            var roomId = plugin.SelectedRoomId;
+            var roomId = plugin.ActiveSelector;
 
             if (string.IsNullOrEmpty(roomId))
             {
