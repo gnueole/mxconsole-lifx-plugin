@@ -236,62 +236,63 @@ namespace Loupedeck.LifxPlugin
 
         private static void DrawLightString(BitmapBuilder builder, float x, float y, float size, BitmapColor tc, bool isDisabled = false)
         {
-            // Draw diagonal PCB strip tape
-            float startX = x - size * 0.45f;
-            float startY = y + size * 0.45f;
-            float endX = x + size * 0.45f;
-            float endY = y - size * 0.45f;
-
+            var ledColor = isDisabled ? new BitmapColor(100, 100, 100) : (tc == BlackColor ? BlackColor : PurpleColor);
             var tapeColor = isDisabled ? new BitmapColor(60, 60, 60) : new BitmapColor(120, 120, 120);
-            builder.DrawLine(startX, startY, endX, endY, tapeColor, 5f);
 
-            // Coordinates for 4 LEDs along the line
-            float[,] points = new float[4, 2] {
-                { x - size * 0.30f, y + size * 0.30f },
-                { x - size * 0.10f, y + size * 0.10f },
-                { x + size * 0.10f, y - size * 0.10f },
-                { x + size * 0.30f, y - size * 0.30f }
-            };
+            // Draw concentric partial circles (coiled tape)
+            float r1 = size * 0.40f;
+            float r2 = size * 0.27f;
+            float r3 = size * 0.15f;
 
-            var ledColors = new BitmapColor[4] {
-                new BitmapColor(255, 60, 60),    // Red
-                new BitmapColor(60, 255, 60),    // Green
-                new BitmapColor(60, 160, 255),   // Blue
-                new BitmapColor(180, 60, 255)    // Purple
-            };
+            // Draw outer tape segment
+            builder.DrawArc((int)x, (int)y, (int)r1, 0f, 320f, tapeColor, 3f);
+            // Draw mid tape segment
+            builder.DrawArc((int)x, (int)y, (int)r2, 40f, 320f, tapeColor, 3f);
+            // Draw inner tape segment
+            builder.DrawArc((int)x, (int)y, (int)r3, 80f, 320f, tapeColor, 3f);
 
-            for (int i = 0; i < 4; i++)
+            // Spooled LEDs coordinates
+            // Outer LEDs
+            float[] outerAngles = { 45f, 135f, 225f, 300f };
+            // Mid LEDs
+            float[] midAngles = { 90f, 210f, 310f };
+            // Inner LEDs
+            float[] innerAngles = { 180f };
+
+            // Helper to draw LED node
+            Action<float, float> drawLed = (px, py) =>
             {
-                var px = points[i, 0];
-                var py = points[i, 1];
-
-                BitmapColor ledColor;
-                if (isDisabled)
-                {
-                    ledColor = new BitmapColor(100, 100, 100);
-                }
-                else if (tc == BlackColor)
-                {
-                    ledColor = BlackColor;
-                }
-                else
-                {
-                    ledColor = ledColors[i];
-                }
-
-                // Draw LED body
-                builder.DrawCircle((int)px, (int)py, (int)(size * 0.08f), ledColor);
-
-                // Draw LED glow ring if not disabled/black
+                builder.DrawCircle((int)px, (int)py, (int)(size * 0.05f), ledColor);
                 if (!isDisabled && tc != BlackColor)
                 {
-                    builder.DrawCircle((int)px, (int)py, (int)(size * 0.12f), ledColor);
+                    builder.DrawCircle((int)px, (int)py, (int)(size * 0.08f), ledColor);
                 }
+            };
+
+            // Draw outer LEDs
+            foreach (var a in outerAngles)
+            {
+                float rad = a * (float)Math.PI / 180f;
+                drawLed(x + r1 * (float)Math.Cos(rad), y + r1 * (float)Math.Sin(rad));
+            }
+
+            // Draw mid LEDs
+            foreach (var a in midAngles)
+            {
+                float rad = a * (float)Math.PI / 180f;
+                drawLed(x + r2 * (float)Math.Cos(rad), y + r2 * (float)Math.Sin(rad));
+            }
+
+            // Draw inner LEDs
+            foreach (var a in innerAngles)
+            {
+                float rad = a * (float)Math.PI / 180f;
+                drawLed(x + r3 * (float)Math.Cos(rad), y + r3 * (float)Math.Sin(rad));
             }
 
             if (isDisabled)
             {
-                // Draw diagonal slash across the strip
+                // Draw diagonal slash across the coil
                 float slashSize = size * 0.45f;
                 builder.DrawLine(x - slashSize, y - slashSize, x + slashSize, y + slashSize, new BitmapColor(180, 80, 80), 3f);
             }
