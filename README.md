@@ -6,17 +6,37 @@ A C# plugin for Logitech MX Creative Console and Loupedeck consoles that allows 
 
 ## Features
 
-| Feature | Icon(s) | Description |
+> [!NOTE]
+> * **Premium Visual Aesthetics:** Custom-rendered keypad buttons featuring a premium black background and vibrant purple (`#8200FF`) text.
+> * **Asynchronous UI:** Background-threaded API operations to keep your console's dials and displays completely lag-free.
+> * **Local Settings:** Securely and automatically reads your Personal Access Token from your local Windows user profile.
+
+> [!IMPORTANT]
+> * **Room Selector:** The first action you map must be a Room Selector key. This button dynamically highlights by inverting to a purple background when a room/group is active. All subsequent buttons will apply their effects to this selected room. If no Room Selector is active, the console defaults to global control.
+
+<br>
+
+| Feature/Effect | Icon(s) | Description |
 | :--- | :---: | :--- |
+| **LIFX Scenes** | <img src="images/scene_icon.png" width="28" height="28" alt="LIFX Scene"> | Map scenes configured in the LIFX app to keypad buttons. Renders a custom picture frame icon. |
+| **LIFX Light Selector** | <img src="images/light_inactive_icon.png" width="28" height="28" alt="Inactive Light"> / <img src="images/light_active_icon.png" width="28" height="28" alt="Active Light"> | Select an individual light to control directly. Room and Light selections are mutually exclusive (selecting one deselects the other). |
+| **Light Reachability** | <img src="images/light_disabled_icon.png" width="28" height="28" alt="Disabled Light"> | Offline or unreachable lights display a muted gray bulb with a crossed-out slash. |
 | **Active Room Selector Model** | <img src="images/group_inactive_icon.png" width="28" height="28" alt="Inactive Group"> / <img src="images/group_active_icon.png" width="28" height="28" alt="Active Group"> | Map selector keys to make a specific room "Active". The button dynamically highlights by inverting to a purple background. **Note:** *You must select a room/group first before dials and general buttons will apply to it.* (Defaults to global control if none is active). |
 | **Brightness Control** | <img src="images/brightness_icon.png" width="28" height="28" alt="Brightness"> | Adjust active room brightness smoothly using console dials or rollers. Press the dial to reset brightness back to 100%. |
 | **Color & Hue Selection** | <img src="images/hue_icon.png" width="28" height="28" alt="Hue"> | Use dial controls to sweep through the complete HSL color spectrum for rich, vivid color lighting. |
 | **Temperature & Warmth** | <img src="images/warmth_icon.png" width="28" height="28" alt="Warmth"> | Dynamically shift the warmth of white light between warm orange candlelight (1500K) and cool daylight (9000K). |
-| **Premium Visual Aesthetics** | — | Custom-rendered keypad buttons featuring a premium black background and vibrant purple (`#8200FF`) text. |
-| **Asynchronous UI** | — | Background-threaded API operations to keep your console's dials and displays completely lag-free. |
-| **Local Settings** | — | Securely and automatically reads your Personal Access Token from your local Windows user profile. |
+| **Breathe Effect** | <img src="images/breathe_effect.png" width="28" height="28" alt="Breathe"> | Slowly pulsates the light between a target color (default: purple) and its current state. |
+| **Move Effect** | <img src="images/move_effect.png" width="28" height="28" alt="Move"> | Shifts color patterns across multi-zone devices (like Z-Strips, Beams, or Tiles). |
+| **Morph Effect** | <img src="images/morph_effect.png" width="28" height="28" alt="Morph"> | Blends colors together smoothly across multi-zone lights. |
+| **Flame Effect** | <img src="images/flame_effect.png" width="28" height="28" alt="Flame"> | Simulates a cozy, flickering flame effect on Candle or Matrix products. |
+| **Pulse Purple** | <img src="images/pulse_effect.png" width="28" height="28" alt="Pulse"> | Flashes the light quickly between a target color (default: purple) and its current state. |
+| **Clouds Effect** | <img src="images/clouds_effect.png" width="28" height="28" alt="Clouds"> | Simulates gentle, slow-moving clouds across multi-zone lights. |
+| **Sunrise Effect** | <img src="images/sunrise_effect.png" width="28" height="28" alt="Sunrise"> | Gradually transition the light brightness and warmth upward to simulate sunrise. |
+| **Sunset Effect** | <img src="images/sunset_effect.png" width="28" height="28" alt="Sunset"> | Gradually transition the light downward to simulate a sunset. |
+| **Effects off** | <img src="images/effects_off.png" width="28" height="28" alt="Effects off"> | Instantly terminates any active hardware or software effects on the light. |
+| **Cycle** | <img src="images/cycle.png" width="28" height="28" alt="Cycle"> | Cycles the light state sequentially through a predefined color wheel list. |
 
----
+<br>
 
 ## Getting Started
 
@@ -54,7 +74,7 @@ To deploy the plugin locally on Windows:
    ```
 2. Restart the **LogiPluginService** on Windows to apply the plugin:
    ```bash
-   powershell.exe -Command "Stop-Process -Name LogiPluginService -Force"
+   powershell.exe -Command "Stop-Process -Name LogiPluginService -Force; Start-Process -FilePath 'C:\Program Files\Logi\LogiPluginService\LogiPluginService.exe'"
    ```
 
 ### 4. Assign Actions

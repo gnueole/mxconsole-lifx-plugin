@@ -18,7 +18,7 @@ description: Controls LIFX smart lights via the Cloud API
 pluginFileName: LifxPlugin.dll
 
 # Plugin version.
-version: 1.0
+version: 1.1
 
 
 

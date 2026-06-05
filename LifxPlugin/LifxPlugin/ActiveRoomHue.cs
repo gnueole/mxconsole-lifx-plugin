@@ -53,7 +53,7 @@ namespace Loupedeck.LifxPlugin
                 var plugin = (LifxPlugin)this.Plugin;
                 if (plugin != null)
                 {
-                    var roomId = plugin.SelectedRoomId;
+                    var roomId = plugin.ActiveSelector;
                     lock (this._initializedGroups)
                     {
                         if (!string.IsNullOrEmpty(roomId))
@@ -283,12 +283,25 @@ namespace Loupedeck.LifxPlugin
             if (imageSize == PluginImageSize.None)
             {
                 var plugin = (LifxPlugin)this.Plugin;
-                if (plugin != null && !string.IsNullOrEmpty(plugin.SelectedRoomId))
+                if (plugin != null && !string.IsNullOrEmpty(plugin.ActiveSelector))
                 {
-                    var group = plugin.Groups.Find(g => g.Id == plugin.SelectedRoomId);
-                    if (group != null)
+                    if (plugin.ActiveSelector.StartsWith("group_id:"))
                     {
-                        return $"{group.Name} Hue";
+                        var groupId = plugin.ActiveSelector.Substring("group_id:".Length);
+                        var group = plugin.Groups.Find(g => g.Id == groupId);
+                        if (group != null)
+                        {
+                            return $"{group.Name} Hue";
+                        }
+                    }
+                    else if (plugin.ActiveSelector.StartsWith("id:"))
+                    {
+                        var lightId = plugin.ActiveSelector.Substring("id:".Length);
+                        var light = plugin.Lights.Find(l => l.Id == lightId);
+                        if (light != null)
+                        {
+                            return $"{light.Name} Hue";
+                        }
                     }
                 }
                 return "Hue";
