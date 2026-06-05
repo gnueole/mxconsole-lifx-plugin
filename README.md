@@ -78,6 +78,15 @@ You can use the provided `Makefile` to automate building, deploying, and restart
 3. Close the Plugins Manager to return to the **Action Picker** on the right side.
 4. Click **`ALL ACTIONS`** at the top of the picker, locate the **LIFX** category, and drag and drop actions (Toggle and Brightness) onto your dial or button keys.
 
+## Useful Links
+
+* **[Logi Actions SDK](https://github.com/logitech/actions-sdk)** - Official Logitech Actions SDK repository for building console plugins.
+* **[Logitech MX Creative Console](https://www.logitech.com/products/keyboards/mx-creative-console.html)** - Official product page for the keypad and dialpad.
+* **[LIFX Smart Lights](https://www.lifx.com/)** - Official website for LIFX smart lighting.
+* **[LIFX Developer API](https://api.developer.lifx.com/)** - Official LIFX HTTP API documentation.
+* **[.NET SDK](https://dotnet.microsoft.com/)** - Official homepage for the .NET development platform.
+* **[Google Antigravity](https://antigravity.google/)** - Official website for the Google DeepMind agentic development platform.
+
 ---
 
 ## Disclaimer
