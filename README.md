@@ -63,12 +63,13 @@ You can use the provided `Makefile` to automate building, deploying, and restart
   make
   ```
 * **Individual Makefile targets**:
-  * `make status`: View the current build environment configuration (dotNET path, detected Windows username, target directories).
+  * `make prepare`: Installs the .NET SDK if missing, and automatically verifies/prompts for the LIFX token.
+  * `make setup-token`: Detects if the LIFX token is configured, and prompts you to enter it if missing.
+  * `make status`: View the current build environment configuration (dotNET path, token config, directories, etc.).
   * `make build`: Only compiles the C# solution (verifies that the .NET SDK is installed first).
   * `make deploy`: Cleans the Windows plugin AppData directory and copies compiled dlls.
   * `make restart`: Restarts the Logitech LogiPluginService on Windows.
   * `make publish`: Packages the plugin as a `.lproj4` archive and saves it to the Windows Downloads directory.
-  * `make setup-token`: Detects if the LIFX token is configured, and prompts you to enter it if missing.
   * `make clean`: Cleans build artifacts.
 
 ### 3. Assign Actions
