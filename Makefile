@@ -7,9 +7,13 @@ TARGET_DIR = $(PLUGINS_DIR)/Lifx
 DOWNLOADS_DIR = /mnt/c/Users/$(WINDOWS_USER)/Downloads
 VERSION = $(shell grep 'version:' LifxPlugin/LifxPlugin/package/metadata/LoupedeckPackage.yaml | awk '{print $$2}' | tr -d '\r')
 
-DOTNET_EXISTS = $(shell [ -f $(DOTNET) ] && echo yes || echo no)
+TOKEN_FILE_1 = /mnt/c/Users/$(WINDOWS_USER)/Documents/LIFX_Token.txt
+TOKEN_FILE_2 = /mnt/c/Users/$(WINDOWS_USER)/.lifx_token
 
-.PHONY: all build deploy restart clean status prepare check-dotnet publish
+DOTNET_EXISTS = $(shell [ -f $(DOTNET) ] && echo yes || echo no)
+TOKEN_EXISTS = $(shell [ -f "$(TOKEN_FILE_1)" ] || [ -f "$(TOKEN_FILE_2)" ] && echo yes || echo no)
+
+.PHONY: all build deploy restart clean status prepare check-dotnet publish setup-token
 
 # Default target: build, deploy and restart service
 all: build deploy restart
@@ -29,6 +33,7 @@ status:
 	@echo "Dotnet Path:     $(DOTNET)"
 	@echo "Dotnet Exists:   $(DOTNET_EXISTS)"
 	@echo "Solution:        $(SLN)"
+	@echo "LIFX Token Configured: $(TOKEN_EXISTS)"
 	@echo "Windows User:    $(WINDOWS_USER)"
 	@echo "Deploy Target:   $(TARGET_DIR)"
 	@echo "Downloads Dir:   $(DOWNLOADS_DIR)"
@@ -59,6 +64,23 @@ restart:
 # Clean build artifacts
 clean: check-dotnet
 	$(DOTNET) clean $(SLN)
+
+# Prompt and configure the LIFX API Token if not already set
+setup-token:
+	@if [ "$(TOKEN_EXISTS)" = "no" ]; then \
+		echo "LIFX API Token not found."; \
+		printf "Please enter your LIFX Personal Access Token: "; \
+		read token; \
+		if [ -z "$$token" ]; then \
+			echo "Error: Token cannot be empty."; \
+			exit 1; \
+		fi; \
+		mkdir -p "$$(dirname "$(TOKEN_FILE_2)")"; \
+		echo "$$token" > "$(TOKEN_FILE_2)"; \
+		echo "Token successfully saved to $(TOKEN_FILE_2)"; \
+	else \
+		echo "LIFX Token is already configured."; \
+	fi
 
 # Package the plugin to the Windows Downloads folder
 publish: build
