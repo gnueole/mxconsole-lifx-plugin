@@ -16,7 +16,7 @@ namespace Loupedeck.LifxPlugin
         private RequestCoalescer _globalCoalescer;
         private readonly Dictionary<string, RequestCoalescer> _groupCoalescers = new Dictionary<string, RequestCoalescer>();
 
-        private double _localGlobalBrightness = 0.5;
+        private double _localGlobalBrightness = BrightnessAdjustment.DefaultBrightness;
         private readonly Dictionary<string, double> _localGroupBrightnesses = new Dictionary<string, double>();
         private RequestCoalescer _localGlobalBrightnessCoalescer;
         private readonly Dictionary<string, RequestCoalescer> _localGroupBrightnessCoalescers = new Dictionary<string, RequestCoalescer>();
@@ -342,7 +342,7 @@ namespace Loupedeck.LifxPlugin
 
             if (string.IsNullOrEmpty(roomId))
             {
-                this._localGlobalBrightness += diff * 0.02;
+                this._localGlobalBrightness += diff * BrightnessAdjustment.StepPerTick;
                 this._localGlobalBrightness = Math.Max(0.0, Math.Min(1.0, this._localGlobalBrightness));
                 
                 PluginLog.Info($"[Hue/Brightness] Global Scroll: diff={diff:+0;-0}, target={this._localGlobalBrightness * 100:0}%");
@@ -358,16 +358,16 @@ namespace Loupedeck.LifxPlugin
             }
             else
             {
-                double currentVal = 0.5;
+                double currentVal = BrightnessAdjustment.DefaultBrightness;
                 lock (this._localGroupBrightnesses)
                 {
                     if (!this._localGroupBrightnesses.TryGetValue(roomId, out currentVal))
                     {
-                        currentVal = 0.5;
+                        currentVal = BrightnessAdjustment.DefaultBrightness;
                     }
                 }
 
-                currentVal += diff * 0.02;
+                currentVal += diff * BrightnessAdjustment.StepPerTick;
                 currentVal = Math.Max(0.0, Math.Min(1.0, currentVal));
 
                 lock (this._localGroupBrightnesses)

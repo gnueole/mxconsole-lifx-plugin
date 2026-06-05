@@ -6,7 +6,7 @@ namespace Loupedeck.LifxPlugin
 
     public class ActiveRoomBrightness : PluginDynamicAdjustment
     {
-        private double _globalBrightness = 0.5;
+        private double _globalBrightness = BrightnessAdjustment.DefaultBrightness;
         private bool _globalInitialized = false;
 
         private readonly Dictionary<string, double> _groupBrightnesses = new Dictionary<string, double>();
@@ -82,7 +82,7 @@ namespace Loupedeck.LifxPlugin
             if (string.IsNullOrEmpty(roomId))
             {
                 // Global brightness adjustment
-                this._globalBrightness += diff * 0.02;
+                this._globalBrightness += diff * BrightnessAdjustment.StepPerTick;
                 this._globalBrightness = Math.Max(0.0, Math.Min(1.0, this._globalBrightness));
                 var targetBrightness = this._globalBrightness;
 
@@ -101,7 +101,7 @@ namespace Loupedeck.LifxPlugin
             else
             {
                 // Group-specific brightness adjustment
-                double currentVal = 0.5;
+                double currentVal = BrightnessAdjustment.DefaultBrightness;
                 lock (this._groupBrightnesses)
                 {
                     if (this._groupBrightnesses.TryGetValue(roomId, out double cachedVal))
@@ -110,7 +110,7 @@ namespace Loupedeck.LifxPlugin
                     }
                 }
 
-                currentVal += diff * 0.02;
+                currentVal += diff * BrightnessAdjustment.StepPerTick;
                 currentVal = Math.Max(0.0, Math.Min(1.0, currentVal));
 
                 lock (this._groupBrightnesses)
@@ -156,7 +156,7 @@ namespace Loupedeck.LifxPlugin
             if (string.IsNullOrEmpty(roomId))
             {
                 // Reset global brightness to 100%
-                this._globalBrightness = 1.0;
+                this._globalBrightness = BrightnessAdjustment.MaxBrightness;
                 PluginLog.Info("[Brightness] Reset global brightness to 100%");
                 this.AdjustmentValueChanged();
 
@@ -167,7 +167,7 @@ namespace Loupedeck.LifxPlugin
                 // Reset group brightness to 100%
                 lock (this._groupBrightnesses)
                 {
-                    this._groupBrightnesses[roomId] = 1.0;
+                    this._groupBrightnesses[roomId] = BrightnessAdjustment.MaxBrightness;
                 }
 
                 PluginLog.Info($"[Brightness] Reset group {roomId} brightness to 100%");
@@ -231,7 +231,7 @@ namespace Loupedeck.LifxPlugin
                     });
                 }
 
-                double val = 0.5;
+                double val = BrightnessAdjustment.DefaultBrightness;
                 lock (this._groupBrightnesses)
                 {
                     if (this._groupBrightnesses.TryGetValue(roomId, out double cachedVal))

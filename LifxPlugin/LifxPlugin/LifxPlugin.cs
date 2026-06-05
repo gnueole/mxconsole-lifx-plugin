@@ -105,11 +105,11 @@ namespace Loupedeck.LifxPlugin
             this.SelectionUpdated?.Invoke(this, EventArgs.Empty);
         }
 
-        private double _effectPeriod = 2.0;
+        private double _effectPeriod = EffectPeriodAdjustment.DefaultPeriod;
         public double EffectPeriod
         {
             get => this._effectPeriod;
-            set => this._effectPeriod = Math.Max(0.5, Math.Min(10.0, value));
+            set => this._effectPeriod = Math.Max(EffectPeriodAdjustment.MinPeriod, Math.Min(EffectPeriodAdjustment.MaxPeriod, value));
         }
 
         public string LastEffectParameter { get; set; } = null;

@@ -6,7 +6,13 @@ namespace Loupedeck.LifxPlugin
 
     public class BrightnessAdjustment : PluginDynamicAdjustment
     {
-        private double _cachedBrightness = 0.5;
+        // ── Tunable constants ─────────────────────────────────────────────────────
+        internal const double DefaultBrightness = 0.5;   // initial / fallback value (0–1)
+        internal const double MaxBrightness     = 1.0;   // reset target — full brightness
+        internal const double MinBrightness     = 0.0;   // floor
+        internal const double StepPerTick       = 0.02;  // brightness change per encoder click
+
+        private double _cachedBrightness = DefaultBrightness;
         private bool _isInitialized = false;
 
         private readonly Dictionary<string, double> _groupBrightnesses = new Dictionary<string, double>();
@@ -82,8 +88,8 @@ namespace Loupedeck.LifxPlugin
             if (string.IsNullOrEmpty(actionParameter))
             {
                 // Global brightness adjustment
-                this._cachedBrightness += diff * 0.02;
-                this._cachedBrightness = Math.Max(0.0, Math.Min(1.0, this._cachedBrightness));
+                this._cachedBrightness += diff * StepPerTick;
+                this._cachedBrightness = Math.Max(MinBrightness, Math.Min(MaxBrightness, this._cachedBrightness));
 
                 PluginLog.Info($"[Brightness/All] diff={diff:+0;-0}, target={this._cachedBrightness * 100:0}%");
                 this.AdjustmentValueChanged();
@@ -100,7 +106,7 @@ namespace Loupedeck.LifxPlugin
             else
             {
                 // Group-specific brightness adjustment
-                double currentVal = 0.5;
+                double currentVal = DefaultBrightness;
                 lock (this._groupBrightnesses)
                 {
                     if (this._groupBrightnesses.TryGetValue(actionParameter, out double cachedVal))
@@ -109,8 +115,8 @@ namespace Loupedeck.LifxPlugin
                     }
                 }
 
-                currentVal += diff * 0.02;
-                currentVal = Math.Max(0.0, Math.Min(1.0, currentVal));
+                currentVal += diff * StepPerTick;
+                currentVal = Math.Max(MinBrightness, Math.Min(MaxBrightness, currentVal));
 
                 lock (this._groupBrightnesses)
                 {
@@ -149,7 +155,7 @@ namespace Loupedeck.LifxPlugin
             if (string.IsNullOrEmpty(actionParameter))
             {
                 // Reset global brightness to 100%
-                this._cachedBrightness = 1.0;
+                this._cachedBrightness = MaxBrightness;
                 this.AdjustmentValueChanged();
 
                 Task.Run(async () =>
@@ -162,14 +168,14 @@ namespace Loupedeck.LifxPlugin
                 // Reset group brightness to 100%
                 lock (this._groupBrightnesses)
                 {
-                    this._groupBrightnesses[actionParameter] = 1.0;
+                    this._groupBrightnesses[actionParameter] = MaxBrightness;
                 }
 
                 this.AdjustmentValueChanged(actionParameter);
 
                 Task.Run(async () =>
                 {
-                    await plugin.Client.SetGroupBrightnessAsync(actionParameter, 1.0);
+                    await plugin.Client.SetGroupBrightnessAsync(actionParameter, MaxBrightness);
                 });
             }
         }
@@ -222,7 +228,7 @@ namespace Loupedeck.LifxPlugin
                     });
                 }
 
-                double val = 0.5;
+                double val = DefaultBrightness;
                 lock (this._groupBrightnesses)
                 {
                     if (this._groupBrightnesses.TryGetValue(actionParameter, out double cachedVal))

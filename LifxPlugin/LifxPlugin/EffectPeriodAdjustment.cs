@@ -5,6 +5,13 @@ namespace Loupedeck.LifxPlugin
 
     public class EffectPeriodAdjustment : PluginDynamicAdjustment
     {
+        // ── Tunable constants ─────────────────────────────────────────────────────
+        internal const double DefaultPeriod  = 2.0;   // seconds — initial / reset value
+        internal const double MinPeriod      = 0.5;   // seconds — slowest allowed effect
+        internal const double MaxPeriod      = 10.0;  // seconds — fastest allowed effect
+        internal const double StepPerTick    = 0.1;   // seconds added/removed per encoder click
+        internal const int    CoalesceDelayMs = 300;  // ms — throttle rapid encoder turns before re-triggering
+
         private RequestCoalescer _coalescer;
 
         public EffectPeriodAdjustment()
@@ -26,10 +33,7 @@ namespace Loupedeck.LifxPlugin
                 return;
             }
 
-            // Adjust period by 0.1s per tick, clamped between 0.5s and 10.0s
-            plugin.EffectPeriod += diff * 0.1;
-            plugin.EffectPeriod = Math.Max(0.5, Math.Min(10.0, plugin.EffectPeriod));
-
+            plugin.EffectPeriod += diff * StepPerTick;
             PluginLog.Info($"[Effect Speed] diff={diff:+0;-0}, target={plugin.EffectPeriod:0.0}s");
             this.AdjustmentValueChanged();
 
@@ -43,7 +47,7 @@ namespace Loupedeck.LifxPlugin
                     }
 
                     var roomId = plugin.ActiveSelector;
-                    var param = plugin.LastEffectParameter;
+                    var param  = plugin.LastEffectParameter;
                     var period = plugin.EffectPeriod;
 
                     PluginLog.Info($"[Effect Speed] Re-triggering last effect '{param}' at period {period:0.0}s...");
@@ -52,7 +56,7 @@ namespace Loupedeck.LifxPlugin
                     {
                         await def.Run(plugin, roomId, period);
                     }
-                }, 300); // 300ms delay to throttle rapid turns
+                }, CoalesceDelayMs);
             }
             this._coalescer.Trigger();
         }
@@ -65,9 +69,8 @@ namespace Loupedeck.LifxPlugin
                 return;
             }
 
-            // Reset period to default 2.0s
-            plugin.EffectPeriod = 2.0;
-            PluginLog.Info("[Effect Speed] Reset to 2.0s");
+            plugin.EffectPeriod = DefaultPeriod;
+            PluginLog.Info($"[Effect Speed] Reset to {DefaultPeriod:0.0}s");
             this.AdjustmentValueChanged();
 
             if (this._coalescer != null)
@@ -79,11 +82,7 @@ namespace Loupedeck.LifxPlugin
         protected override String GetAdjustmentValue(String actionParameter)
         {
             var plugin = (LifxPlugin)this.Plugin;
-            if (plugin == null)
-            {
-                return "2.0s";
-            }
-            return $"{plugin.EffectPeriod:0.0}s";
+            return plugin == null ? $"{DefaultPeriod:0.0}s" : $"{plugin.EffectPeriod:0.0}s";
         }
 
         protected override BitmapImage GetAdjustmentImage(String actionParameter, PluginImageSize imageSize)
