@@ -4,10 +4,12 @@ SLN = LifxPlugin/LifxPlugin.sln
 WINDOWS_USER = $(shell powershell.exe -Command "Write-Host -NoNewline \$$env:USERNAME" | tr -d '\r')
 PLUGINS_DIR = /mnt/c/Users/$(WINDOWS_USER)/AppData/Local/Logi/LogiPluginService/Plugins
 TARGET_DIR = $(PLUGINS_DIR)/Lifx
+DOWNLOADS_DIR = /mnt/c/Users/$(WINDOWS_USER)/Downloads
+VERSION = $(shell grep 'version:' LifxPlugin/LifxPlugin/package/metadata/LoupedeckPackage.yaml | awk '{print $$2}' | tr -d '\r')
 
 DOTNET_EXISTS = $(shell [ -f $(DOTNET) ] && echo yes || echo no)
 
-.PHONY: all build deploy restart clean status prepare check-dotnet
+.PHONY: all build deploy restart clean status prepare check-dotnet publish
 
 # Default target: build, deploy and restart service
 all: build deploy restart
@@ -29,6 +31,8 @@ status:
 	@echo "Solution:        $(SLN)"
 	@echo "Windows User:    $(WINDOWS_USER)"
 	@echo "Deploy Target:   $(TARGET_DIR)"
+	@echo "Downloads Dir:   $(DOWNLOADS_DIR)"
+	@echo "Version:         $(VERSION)"
 	@echo "======================================="
 
 # Build the plugin using .NET SDK
@@ -55,6 +59,13 @@ restart:
 # Clean build artifacts
 clean: check-dotnet
 	$(DOTNET) clean $(SLN)
+
+# Package the plugin to the Windows Downloads folder
+publish: build
+	@echo "Packaging Lifx Plugin version $(VERSION)..."
+	powershell.exe -Command "Compress-Archive -Path 'LifxPlugin\LifxPlugin\Debug\*' -DestinationPath 'lifx-$(VERSION).zip' -Force"
+	mv lifx-$(VERSION).zip "$(DOWNLOADS_DIR)/lifx-$(VERSION).lproj4"
+	@echo "Published to $(DOWNLOADS_DIR)/lifx-$(VERSION).lproj4"
 
 # Prepare the build environment by installing .NET 8.0 SDK automatically
 prepare:
