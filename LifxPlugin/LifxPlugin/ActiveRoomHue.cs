@@ -6,6 +6,10 @@ namespace Loupedeck.LifxPlugin
 
     public class ActiveRoomHue : PluginDynamicAdjustment
     {
+        // ── Tunable constants ─────────────────────────────────────────────────────
+        internal const double HueRange    = 360.0;  // degrees — full circle wrap
+        internal const double StepPerTick = 5.0;    // degrees per encoder click
+
         private double _globalHue = 0.0;
         private bool _globalInitialized = false;
 
@@ -107,7 +111,7 @@ namespace Loupedeck.LifxPlugin
             if (string.IsNullOrEmpty(roomId))
             {
                 // Global hue adjustment
-                this._globalHue = (this._globalHue + diff * 5.0) % 360.0;
+                this._globalHue = (this._globalHue + diff * StepPerTick) % HueRange;
                 if (this._globalHue < 0)
                 {
                     this._globalHue += 360.0;
@@ -139,7 +143,7 @@ namespace Loupedeck.LifxPlugin
                     }
                 }
 
-                currentVal = (currentVal + diff * 5.0) % 360.0;
+                currentVal = (currentVal + diff * StepPerTick) % HueRange;
                 if (currentVal < 0)
                 {
                     currentVal += 360.0;

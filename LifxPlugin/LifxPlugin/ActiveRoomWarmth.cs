@@ -6,7 +6,13 @@ namespace Loupedeck.LifxPlugin
 
     public class ActiveRoomWarmth : PluginDynamicAdjustment
     {
-        private int _globalTemperature = 3500;
+        // ── Tunable constants ─────────────────────────────────────────────────────
+        internal const int DefaultTemperature = 3500;  // Kelvin — warm white reset target
+        internal const int MinTemperature     = 1500;  // Kelvin — warmest (candlelight)
+        internal const int MaxTemperature     = 9000;  // Kelvin — coolest (daylight)
+        internal const int StepPerTick        = 200;   // Kelvin change per encoder click
+
+        private int _globalTemperature = DefaultTemperature;
         private bool _globalInitialized = false;
 
         private readonly Dictionary<string, int> _groupTemperatures = new Dictionary<string, int>();
@@ -107,8 +113,8 @@ namespace Loupedeck.LifxPlugin
             if (string.IsNullOrEmpty(roomId))
             {
                 // Global temperature adjustment (clockwise = colder = higher Kelvin)
-                this._globalTemperature += diff * 200;
-                this._globalTemperature = Math.Max(1500, Math.Min(9000, this._globalTemperature));
+                this._globalTemperature += diff * StepPerTick;
+                this._globalTemperature = Math.Max(MinTemperature, Math.Min(MaxTemperature, this._globalTemperature));
                 var targetTemp = this._globalTemperature;
 
                 PluginLog.Info($"[Warmth] Global: diff={diff:+0;-0}, target={targetTemp}K");
@@ -126,7 +132,7 @@ namespace Loupedeck.LifxPlugin
             else
             {
                 // Group-specific temperature adjustment (clockwise = warmer = lower Kelvin)
-                int currentVal = 3500;
+                int currentVal = DefaultTemperature;
                 lock (this._groupTemperatures)
                 {
                     if (this._groupTemperatures.TryGetValue(roomId, out int cachedVal))
@@ -135,8 +141,8 @@ namespace Loupedeck.LifxPlugin
                     }
                 }
 
-                currentVal += diff * 200;
-                currentVal = Math.Max(1500, Math.Min(9000, currentVal));
+                currentVal += diff * StepPerTick;
+                currentVal = Math.Max(MinTemperature, Math.Min(MaxTemperature, currentVal));
 
                 lock (this._groupTemperatures)
                 {
@@ -181,22 +187,22 @@ namespace Loupedeck.LifxPlugin
 
             if (string.IsNullOrEmpty(roomId))
             {
-                this._globalTemperature = 3500;
-                PluginLog.Info("[Warmth] Reset global temperature to 3500K");
+                this._globalTemperature = DefaultTemperature;
+                PluginLog.Info($"[Warmth] Reset global temperature to {DefaultTemperature}K");
                 this.AdjustmentValueChanged();
 
-                Task.Run(async () => await plugin.Client.SetTemperatureAsync(3500));
+                Task.Run(async () => await plugin.Client.SetTemperatureAsync(DefaultTemperature));
             }
             else
             {
                 lock (this._groupTemperatures)
                 {
-                    this._groupTemperatures[roomId] = 3500;
+                    this._groupTemperatures[roomId] = DefaultTemperature;
                 }
-                PluginLog.Info($"[Warmth] Reset group {roomId} temperature to 3500K");
+                PluginLog.Info($"[Warmth] Reset group {roomId} temperature to {DefaultTemperature}K");
                 this.AdjustmentValueChanged();
 
-                Task.Run(async () => await plugin.Client.SetGroupTemperatureAsync(roomId, 3500));
+                Task.Run(async () => await plugin.Client.SetGroupTemperatureAsync(roomId, DefaultTemperature));
             }
         }
 
@@ -205,7 +211,7 @@ namespace Loupedeck.LifxPlugin
             var plugin = (LifxPlugin)this.Plugin;
             if (plugin == null)
             {
-                return "3500K";
+                return $"{DefaultTemperature}K";
             }
 
             var roomId = plugin.ActiveSelector;
@@ -254,7 +260,7 @@ namespace Loupedeck.LifxPlugin
                     });
                 }
 
-                int val = 3500;
+                int val = DefaultTemperature;
                 lock (this._groupTemperatures)
                 {
                     if (this._groupTemperatures.TryGetValue(roomId, out int cachedVal))
