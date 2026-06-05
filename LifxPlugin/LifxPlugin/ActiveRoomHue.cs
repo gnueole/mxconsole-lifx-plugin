@@ -7,8 +7,12 @@ namespace Loupedeck.LifxPlugin
     public class ActiveRoomHue : PluginDynamicAdjustment
     {
         // ── Tunable constants ─────────────────────────────────────────────────────
-        internal const double HueRange    = 360.0;  // degrees — full circle wrap
-        internal const double StepPerTick = 5.0;    // degrees per encoder click
+        internal static double HueRange { get; set; } = 360.0;  // degrees — full circle wrap
+        internal static double StepPerTick { get; set; } = 5.0;    // degrees per encoder click
+        public static string LogFormatGlobal { get; set; } = "[Hue] Global: diff={0:+0;-0}, target={1:0.0}°";
+        public static string LogFormatGroup { get; set; } = "[Hue] Group {0}: diff={1:+0;-0}, target={2:0.0}°";
+        public static string LogFormatBrightnessGlobal { get; set; } = "[Hue/Brightness] Global Scroll: diff={0:+0;-0}, target={1:0}%";
+        public static string LogFormatBrightnessGroup { get; set; } = "[Hue/Brightness] Group {0} Scroll: diff={1:+0;-0}, target={2:0}%";
 
         private double _globalHue = 0.0;
         private bool _globalInitialized = false;
@@ -117,7 +121,7 @@ namespace Loupedeck.LifxPlugin
                     this._globalHue += 360.0;
                 }
 
-                PluginLog.Info($"[Hue] Global: diff={diff:+0;-0}, target={this._globalHue:0.0}°");
+                PluginLog.Info(string.Format(LogFormatGlobal, diff, this._globalHue));
                 this.AdjustmentValueChanged();
 
                 if (this._globalCoalescer == null)
@@ -154,7 +158,7 @@ namespace Loupedeck.LifxPlugin
                     this._groupHues[roomId] = currentVal;
                 }
 
-                PluginLog.Info($"[Hue] Group {roomId}: diff={diff:+0;-0}, target={currentVal:0.0}°");
+                PluginLog.Info(string.Format(LogFormatGroup, roomId, diff, currentVal));
                 this.AdjustmentValueChanged();
 
                 RequestCoalescer coalescer;
@@ -349,7 +353,7 @@ namespace Loupedeck.LifxPlugin
                 this._localGlobalBrightness += diff * BrightnessAdjustment.StepPerTick;
                 this._localGlobalBrightness = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, this._localGlobalBrightness));
                 
-                PluginLog.Info($"[Hue/Brightness] Global Scroll: diff={diff:+0;-0}, target={this._localGlobalBrightness * 100:0}%");
+                PluginLog.Info(string.Format(LogFormatBrightnessGlobal, diff, this._localGlobalBrightness * 100));
 
                 if (this._localGlobalBrightnessCoalescer == null)
                 {
@@ -379,7 +383,7 @@ namespace Loupedeck.LifxPlugin
                     this._localGroupBrightnesses[roomId] = currentVal;
                 }
 
-                PluginLog.Info($"[Hue/Brightness] Group {roomId} Scroll: diff={diff:+0;-0}, target={currentVal * 100:0}%");
+                PluginLog.Info(string.Format(LogFormatBrightnessGroup, roomId, diff, currentVal * 100));
 
                 RequestCoalescer coalescer;
                 lock (this._localGroupBrightnessCoalescers)

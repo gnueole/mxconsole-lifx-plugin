@@ -6,7 +6,7 @@ namespace Loupedeck.LifxPlugin
     public class ToggleLightCommand : PluginDynamicCommand
     {
         public ToggleLightCommand()
-            : base("On/OFf", "Toggle active room or house lights", "LIFX")
+            : base("On/Off", "Toggle active room or house lights", "LIFX")
         {
         }
 
@@ -74,7 +74,7 @@ namespace Loupedeck.LifxPlugin
                         return light != null ? $"Toggle\n{light.Name}" : "Toggle Light";
                     }
                 }
-                return "On/OFf";
+                return "On/Off";
             }
 
             if (plugin == null)

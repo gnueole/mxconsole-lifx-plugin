@@ -13,6 +13,7 @@ namespace Loupedeck.LifxPlugin
         public override Boolean HasNoApplication => true;
 
         public LifxClient Client { get; private set; }
+        internal static TimeSpan UpdateInterval { get; set; } = TimeSpan.FromMinutes(2);
 
         public List<LifxGroup> Groups { get; private set; } = new List<LifxGroup>();
         public List<LifxScene> Scenes { get; private set; } = new List<LifxScene>();
@@ -132,7 +133,7 @@ namespace Loupedeck.LifxPlugin
                 this.Client = new LifxClient();
                 if (!this.Client.HasToken)
                 {
-                    PluginLog.Warning("LIFX API Token was not found. Please create a text file named 'LIFX_Token.txt' in your Documents folder with your token.");
+                    PluginLog.Warning($"LIFX API Token was not found. Please create a text file named '{LifxClient.TokenFileName}' in your Documents folder with your token.");
                 }
                 else
                 {
@@ -174,8 +175,8 @@ namespace Loupedeck.LifxPlugin
                                 PluginLog.Error(ex, "Exception in background update loop.");
                             }
 
-                            // Wait 2 minutes before next update
-                            await Task.Delay(TimeSpan.FromMinutes(2));
+                            // Wait before next update
+                            await Task.Delay(UpdateInterval);
                         }
                     });
                 }

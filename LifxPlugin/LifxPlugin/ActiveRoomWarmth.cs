@@ -7,10 +7,16 @@ namespace Loupedeck.LifxPlugin
     public class ActiveRoomWarmth : PluginDynamicAdjustment
     {
         // ── Tunable constants ─────────────────────────────────────────────────────
-        internal const int DefaultTemperature = 3500;  // Kelvin — warm white reset target
-        internal const int MinTemperature     = 1500;  // Kelvin — warmest (candlelight)
-        internal const int MaxTemperature     = 9000;  // Kelvin — coolest (daylight)
-        internal const int StepPerTick        = 200;   // Kelvin change per encoder click
+        internal static int DefaultTemperature { get; set; } = 3500;  // Kelvin — warm white reset target
+        internal static int MinTemperature { get; set; } = 1500;  // Kelvin — warmest (candlelight)
+        internal static int MaxTemperature { get; set; } = 9000;  // Kelvin — coolest (daylight)
+        internal static int StepPerTick { get; set; } = 200;   // Kelvin change per encoder click
+        public static string LogFormatGlobal { get; set; } = "[Warmth] Global: diff={0:+0;-0}, target={1}K";
+        public static string LogFormatGroup { get; set; } = "[Warmth] Group {0}: diff={1:+0;-0}, target={2}K";
+        public static string LogResetGlobal { get; set; } = "[Warmth] Reset global temperature to {0}K";
+        public static string LogResetGroup { get; set; } = "[Warmth] Reset group {0} temperature to {1}K";
+        public static string LogFormatBrightnessGlobal { get; set; } = "[Warmth/Brightness] Global Scroll: diff={0:+0;-0}, target={1:0}%";
+        public static string LogFormatBrightnessGroup { get; set; } = "[Warmth/Brightness] Group {0} Scroll: diff={1:+0;-0}, target={2:0}%";
 
         private int _globalTemperature = DefaultTemperature;
         private bool _globalInitialized = false;
@@ -117,7 +123,7 @@ namespace Loupedeck.LifxPlugin
                 this._globalTemperature = Math.Max(MinTemperature, Math.Min(MaxTemperature, this._globalTemperature));
                 var targetTemp = this._globalTemperature;
 
-                PluginLog.Info($"[Warmth] Global: diff={diff:+0;-0}, target={targetTemp}K");
+                PluginLog.Info(string.Format(LogFormatGlobal, diff, targetTemp));
                 this.AdjustmentValueChanged();
 
                 if (this._globalCoalescer == null)
@@ -149,7 +155,7 @@ namespace Loupedeck.LifxPlugin
                     this._groupTemperatures[roomId] = currentVal;
                 }
 
-                PluginLog.Info($"[Warmth] Group {roomId}: diff={diff:+0;-0}, target={currentVal}K");
+                PluginLog.Info(string.Format(LogFormatGroup, roomId, diff, currentVal));
                 this.AdjustmentValueChanged();
 
                 RequestCoalescer coalescer;
@@ -188,7 +194,7 @@ namespace Loupedeck.LifxPlugin
             if (string.IsNullOrEmpty(roomId))
             {
                 this._globalTemperature = DefaultTemperature;
-                PluginLog.Info($"[Warmth] Reset global temperature to {DefaultTemperature}K");
+                PluginLog.Info(string.Format(LogResetGlobal, DefaultTemperature));
                 this.AdjustmentValueChanged();
 
                 Task.Run(async () => await plugin.Client.SetTemperatureAsync(DefaultTemperature));
@@ -199,7 +205,7 @@ namespace Loupedeck.LifxPlugin
                 {
                     this._groupTemperatures[roomId] = DefaultTemperature;
                 }
-                PluginLog.Info($"[Warmth] Reset group {roomId} temperature to {DefaultTemperature}K");
+                PluginLog.Info(string.Format(LogResetGroup, roomId, DefaultTemperature));
                 this.AdjustmentValueChanged();
 
                 Task.Run(async () => await plugin.Client.SetGroupTemperatureAsync(roomId, DefaultTemperature));
@@ -339,7 +345,7 @@ namespace Loupedeck.LifxPlugin
                 this._localGlobalBrightness += diff * BrightnessAdjustment.StepPerTick;
                 this._localGlobalBrightness = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, this._localGlobalBrightness));
                 
-                PluginLog.Info($"[Warmth/Brightness] Global Scroll: diff={diff:+0;-0}, target={this._localGlobalBrightness * 100:0}%");
+                PluginLog.Info(string.Format(LogFormatBrightnessGlobal, diff, this._localGlobalBrightness * 100));
 
                 if (this._localGlobalBrightnessCoalescer == null)
                 {
@@ -369,7 +375,7 @@ namespace Loupedeck.LifxPlugin
                     this._localGroupBrightnesses[roomId] = currentVal;
                 }
 
-                PluginLog.Info($"[Warmth/Brightness] Group {roomId} Scroll: diff={diff:+0;-0}, target={currentVal * 100:0}%");
+                PluginLog.Info(string.Format(LogFormatBrightnessGroup, roomId, diff, currentVal * 100));
 
                 RequestCoalescer coalescer;
                 lock (this._localGroupBrightnessCoalescers)

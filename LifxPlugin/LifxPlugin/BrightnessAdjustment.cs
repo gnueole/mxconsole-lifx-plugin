@@ -7,10 +7,13 @@ namespace Loupedeck.LifxPlugin
     public class BrightnessAdjustment : PluginDynamicAdjustment
     {
         // ── Tunable constants ─────────────────────────────────────────────────────
-        internal const double DefaultBrightness = 0.5;   // initial / fallback value (0–1)
-        internal const double MaxBrightness     = 1.0;   // reset target — full brightness
-        internal const double MinBrightness     = 0.0;   // floor
-        internal const double StepPerTick       = 0.02;  // brightness change per encoder click
+        internal static double DefaultBrightness { get; set; } = 0.5;   // initial / fallback value (0–1)
+        internal static double MaxBrightness { get; set; } = 1.0;   // reset target — full brightness
+        internal static double MinBrightness { get; set; } = 0.0;   // floor
+        internal static double StepPerTick { get; set; } = 0.02;  // brightness change per encoder click
+        internal static int CoalesceDelayMs { get; set; } = 350;   // ms — throttle rapid encoder turns before sending HTTP
+        internal static string LogFormatAll { get; set; } = "[Brightness/All] diff={0:+0;-0}, target={1:0}%";
+        internal static string LogFormatGroup { get; set; } = "[Brightness/Group {0}] diff={1:+0;-0}, target={2:0}%";
 
         private double _cachedBrightness = DefaultBrightness;
         private bool _isInitialized = false;
@@ -91,7 +94,7 @@ namespace Loupedeck.LifxPlugin
                 this._cachedBrightness += diff * StepPerTick;
                 this._cachedBrightness = Math.Max(MinBrightness, Math.Min(MaxBrightness, this._cachedBrightness));
 
-                PluginLog.Info($"[Brightness/All] diff={diff:+0;-0}, target={this._cachedBrightness * 100:0}%");
+                PluginLog.Info(string.Format(LogFormatAll, diff, this._cachedBrightness * 100));
                 this.AdjustmentValueChanged();
 
                 if (this._globalCoalescer == null)
@@ -123,7 +126,7 @@ namespace Loupedeck.LifxPlugin
                     this._groupBrightnesses[actionParameter] = currentVal;
                 }
 
-                PluginLog.Info($"[Brightness/Group {actionParameter}] diff={diff:+0;-0}, target={currentVal * 100:0}%");
+                PluginLog.Info(string.Format(LogFormatGroup, actionParameter, diff, currentVal * 100));
                 this.AdjustmentValueChanged(actionParameter);
 
                 RequestCoalescer coalescer;

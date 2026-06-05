@@ -6,11 +6,14 @@ namespace Loupedeck.LifxPlugin
     public class EffectPeriodAdjustment : PluginDynamicAdjustment
     {
         // ── Tunable constants ─────────────────────────────────────────────────────
-        internal const double DefaultPeriod  = 2.0;   // seconds — initial / reset value
-        internal const double MinPeriod      = 0.5;   // seconds — slowest allowed effect
-        internal const double MaxPeriod      = 10.0;  // seconds — fastest allowed effect
-        internal const double StepPerTick    = 0.1;   // seconds added/removed per encoder click
-        internal const int    CoalesceDelayMs = 300;  // ms — throttle rapid encoder turns before re-triggering
+        internal static double DefaultPeriod { get; set; } = 2.0;   // seconds — initial / reset value
+        internal static double MinPeriod { get; set; } = 0.5;   // seconds — slowest allowed effect
+        internal static double MaxPeriod { get; set; } = 10.0;  // seconds — fastest allowed effect
+        internal static double StepPerTick { get; set; } = 0.1;   // seconds added/removed per encoder click
+        internal static int CoalesceDelayMs { get; set; } = 300;  // ms — throttle rapid encoder turns before re-triggering
+        public static string LogFormatAdjustment { get; set; } = "[Effect Speed] diff={0:+0;-0}, target={1:0.0}s";
+        public static string LogFormatRetrigger { get; set; } = "[Effect Speed] Re-triggering last effect '{0}' at period {1:0.0}s...";
+        public static string LogReset { get; set; } = "[Effect Speed] Reset to {0:0.0}s";
 
         private RequestCoalescer _coalescer;
 
@@ -34,7 +37,7 @@ namespace Loupedeck.LifxPlugin
             }
 
             plugin.EffectPeriod += diff * StepPerTick;
-            PluginLog.Info($"[Effect Speed] diff={diff:+0;-0}, target={plugin.EffectPeriod:0.0}s");
+            PluginLog.Info(string.Format(LogFormatAdjustment, diff, plugin.EffectPeriod));
             this.AdjustmentValueChanged();
 
             if (this._coalescer == null)
@@ -50,7 +53,7 @@ namespace Loupedeck.LifxPlugin
                     var param  = plugin.LastEffectParameter;
                     var period = plugin.EffectPeriod;
 
-                    PluginLog.Info($"[Effect Speed] Re-triggering last effect '{param}' at period {period:0.0}s...");
+                    PluginLog.Info(string.Format(LogFormatRetrigger, param, period));
 
                     if (LifxEffectsCommand.Effects.TryGetValue(param, out var def))
                     {
@@ -70,7 +73,7 @@ namespace Loupedeck.LifxPlugin
             }
 
             plugin.EffectPeriod = DefaultPeriod;
-            PluginLog.Info($"[Effect Speed] Reset to {DefaultPeriod:0.0}s");
+            PluginLog.Info(string.Format(LogReset, DefaultPeriod));
             this.AdjustmentValueChanged();
 
             if (this._coalescer != null)

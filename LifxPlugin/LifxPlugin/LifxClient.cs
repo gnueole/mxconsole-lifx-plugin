@@ -33,6 +33,9 @@ namespace Loupedeck.LifxPlugin
 
     public class LifxClient
     {
+        public static string TokenFileName { get; set; } = "LIFX_Token.txt";
+        public static string FallbackTokenFileName { get; set; } = ".lifx_token";
+
         private readonly HttpClient _httpClient;
         private readonly string _token;
 
@@ -42,7 +45,7 @@ namespace Loupedeck.LifxPlugin
             {
                 // First try Documents/LIFX_Token.txt (user-friendly location)
                 var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                var documentsTokenPath = Path.Combine(documentsPath, "LIFX_Token.txt");
+                var documentsTokenPath = Path.Combine(documentsPath, TokenFileName);
 
                 if (File.Exists(documentsTokenPath))
                 {
@@ -52,7 +55,7 @@ namespace Loupedeck.LifxPlugin
                 {
                     // Fallback to UserProfile/.lifx_token (developer/power-user location)
                     var userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    var userProfileTokenPath = Path.Combine(userProfilePath, ".lifx_token");
+                    var userProfileTokenPath = Path.Combine(userProfilePath, FallbackTokenFileName);
 
                     if (File.Exists(userProfileTokenPath))
                     {
@@ -62,7 +65,7 @@ namespace Loupedeck.LifxPlugin
             }
             catch (Exception ex)
             {
-                PluginLog.Error(ex, "Failed to load LIFX token from Documents/LIFX_Token.txt or ~/.lifx_token");
+                PluginLog.Error(ex, $"Failed to load LIFX token from Documents/{TokenFileName} or ~/{FallbackTokenFileName}");
             }
 
             this._httpClient = new HttpClient();
@@ -1532,6 +1535,8 @@ namespace Loupedeck.LifxPlugin
 
     public class RequestCoalescer
     {
+        public static int DefaultDelayMs { get; set; } = 350;
+
         private readonly Func<Task> _action;
         private readonly int _delayMs;
         private System.Threading.CancellationTokenSource _cts;
@@ -1539,7 +1544,12 @@ namespace Loupedeck.LifxPlugin
         private bool _isRunning;
         private bool _hasPending;
 
-        public RequestCoalescer(Func<Task> action, int delayMs = 350)
+        public RequestCoalescer(Func<Task> action)
+            : this(action, DefaultDelayMs)
+        {
+        }
+
+        public RequestCoalescer(Func<Task> action, int delayMs)
         {
             this._action = action;
             this._delayMs = delayMs;

@@ -6,6 +6,11 @@ namespace Loupedeck.LifxPlugin
 
     public class ActiveRoomBrightness : PluginDynamicAdjustment
     {
+        public static string LogFormatGlobal { get; set; } = "[Brightness] Global: diff={0:+0;-0}, target={1:0}%";
+        public static string LogFormatGroup { get; set; } = "[Brightness] Group {0}: diff={1:+0;-0}, target={2:0}%";
+        public static string LogResetGlobal { get; set; } = "[Brightness] Reset global brightness to 100%";
+        public static string LogResetGroup { get; set; } = "[Brightness] Reset group {0} brightness to 100%";
+
         private double _globalBrightness = BrightnessAdjustment.DefaultBrightness;
         private bool _globalInitialized = false;
 
@@ -86,7 +91,7 @@ namespace Loupedeck.LifxPlugin
                 this._globalBrightness = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, this._globalBrightness));
                 var targetBrightness = this._globalBrightness;
 
-                PluginLog.Info($"[Brightness] Global: diff={diff:+0;-0}, target={targetBrightness * 100:0}%");
+                PluginLog.Info(string.Format(LogFormatGlobal, diff, targetBrightness * 100));
                 this.AdjustmentValueChanged();
 
                 if (this._globalCoalescer == null)
@@ -118,7 +123,7 @@ namespace Loupedeck.LifxPlugin
                     this._groupBrightnesses[roomId] = currentVal;
                 }
 
-                PluginLog.Info($"[Brightness] Group {roomId}: diff={diff:+0;-0}, target={currentVal * 100:0}%");
+                PluginLog.Info(string.Format(LogFormatGroup, roomId, diff, currentVal * 100));
                 this.AdjustmentValueChanged();
 
                 RequestCoalescer coalescer;
@@ -157,7 +162,7 @@ namespace Loupedeck.LifxPlugin
             {
                 // Reset global brightness to 100%
                 this._globalBrightness = BrightnessAdjustment.MaxBrightness;
-                PluginLog.Info("[Brightness] Reset global brightness to 100%");
+                PluginLog.Info(LogResetGlobal);
                 this.AdjustmentValueChanged();
 
                 Task.Run(async () => await plugin.Client.SetBrightnessAsync(1.0));
@@ -170,7 +175,7 @@ namespace Loupedeck.LifxPlugin
                     this._groupBrightnesses[roomId] = BrightnessAdjustment.MaxBrightness;
                 }
 
-                PluginLog.Info($"[Brightness] Reset group {roomId} brightness to 100%");
+                PluginLog.Info(string.Format(LogResetGroup, roomId));
                 this.AdjustmentValueChanged();
 
                 Task.Run(async () => await plugin.Client.SetGroupBrightnessAsync(roomId, 1.0));
