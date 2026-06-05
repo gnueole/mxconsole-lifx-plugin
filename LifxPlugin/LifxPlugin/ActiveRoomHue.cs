@@ -347,7 +347,7 @@ namespace Loupedeck.LifxPlugin
             if (string.IsNullOrEmpty(roomId))
             {
                 this._localGlobalBrightness += diff * BrightnessAdjustment.StepPerTick;
-                this._localGlobalBrightness = Math.Max(0.0, Math.Min(1.0, this._localGlobalBrightness));
+                this._localGlobalBrightness = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, this._localGlobalBrightness));
                 
                 PluginLog.Info($"[Hue/Brightness] Global Scroll: diff={diff:+0;-0}, target={this._localGlobalBrightness * 100:0}%");
 
@@ -372,7 +372,7 @@ namespace Loupedeck.LifxPlugin
                 }
 
                 currentVal += diff * BrightnessAdjustment.StepPerTick;
-                currentVal = Math.Max(0.0, Math.Min(1.0, currentVal));
+                currentVal = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, currentVal));
 
                 lock (this._localGroupBrightnesses)
                 {

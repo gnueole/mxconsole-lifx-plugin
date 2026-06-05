@@ -83,7 +83,7 @@ namespace Loupedeck.LifxPlugin
             {
                 // Global brightness adjustment
                 this._globalBrightness += diff * BrightnessAdjustment.StepPerTick;
-                this._globalBrightness = Math.Max(0.0, Math.Min(1.0, this._globalBrightness));
+                this._globalBrightness = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, this._globalBrightness));
                 var targetBrightness = this._globalBrightness;
 
                 PluginLog.Info($"[Brightness] Global: diff={diff:+0;-0}, target={targetBrightness * 100:0}%");
@@ -111,7 +111,7 @@ namespace Loupedeck.LifxPlugin
                 }
 
                 currentVal += diff * BrightnessAdjustment.StepPerTick;
-                currentVal = Math.Max(0.0, Math.Min(1.0, currentVal));
+                currentVal = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, currentVal));
 
                 lock (this._groupBrightnesses)
                 {

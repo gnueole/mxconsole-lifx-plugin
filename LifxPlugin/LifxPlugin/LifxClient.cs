@@ -145,7 +145,7 @@ namespace Loupedeck.LifxPlugin
 
             try
             {
-                brightness = Math.Max(0.0, Math.Min(1.0, brightness));
+                brightness = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, brightness));
 
                 var payload = new { brightness = brightness, power = brightness > 0.001 ? "on" : "off" };
                 var payloadString = JsonSerializer.Serialize(payload);
@@ -555,7 +555,7 @@ namespace Loupedeck.LifxPlugin
 
             try
             {
-                brightness = Math.Max(0.0, Math.Min(1.0, brightness));
+                brightness = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, brightness));
                 var payload = new { brightness = brightness, power = brightness > 0.001 ? "on" : "off" };
                 var payloadString = JsonSerializer.Serialize(payload);
                 var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
@@ -663,7 +663,7 @@ namespace Loupedeck.LifxPlugin
 
             try
             {
-                hue = Math.Max(0.0, Math.Min(360.0, hue));
+                hue = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(ActiveRoomHue.HueRange, hue));
 
                 var payload = new { color = $"hue:{hue:0.0} saturation:1.0", power = "on" };
                 var payloadString = JsonSerializer.Serialize(payload);
@@ -755,7 +755,7 @@ namespace Loupedeck.LifxPlugin
 
             try
             {
-                hue = Math.Max(0.0, Math.Min(360.0, hue));
+                hue = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(ActiveRoomHue.HueRange, hue));
                 var payload = new { color = $"hue:{hue:0.0} saturation:1.0", power = "on" };
                 var payloadString = JsonSerializer.Serialize(payload);
                 var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
