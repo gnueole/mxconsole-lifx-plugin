@@ -1318,6 +1318,139 @@ namespace Loupedeck.LifxPlugin
             }
         }
 
+        /// <summary>
+        /// Plays sunrise or sunset on any selector, routing correctly per device type:
+        /// - Standard bulbs: use the dedicated /effects/sunrise or /effects/sunset endpoint
+        /// - String/multizone lights: use a warm color state transition (those endpoints don't support multizone)
+        /// - When selector is "all" or group-based: tries effect API first, falls back gracefully
+        /// </summary>
+        public async Task<bool> PlaySunriseSunsetCompatAsync(bool isSunrise, double duration, string selectorArg, List<LifxLight> knownLights)
+        {
+            if (!this.HasToken)
+            {
+                PluginLog.Warning("Cannot play sunrise/sunset: LIFX token is not configured.");
+                return false;
+            }
+
+            var selector = this.ResolveSelector(selectorArg);
+            var effectDuration = duration * 10.0;
+
+            // Parse individual IDs from selector if it's a comma-separated multi-selector
+            // e.g. "id:abc123,id:def456" or "group_id:xyz"
+            var selectorParts = selector.Split(',');
+            var bulbSelectors = new List<string>();
+            var stringSelectors = new List<string>();
+            var groupOrAllSelectors = new List<string>();
+
+            foreach (var part in selectorParts)
+            {
+                var p = part.Trim();
+                if (p.StartsWith("id:"))
+                {
+                    // Look up this light in knownLights to determine type
+                    var lightId = p.Substring(3);
+                    var light = knownLights?.Find(l => l.Id == lightId);
+                    if (light != null && light.Type == "string")
+                    {
+                        stringSelectors.Add(p);
+                        PluginLog.Info($"SunriseSunsetCompat: light {light.Name} ({lightId}) is a string/multizone light - will use state transition.");
+                    }
+                    else
+                    {
+                        bulbSelectors.Add(p);
+                    }
+                }
+                else
+                {
+                    // group_id: or all - try the effect API, it may partially succeed
+                    groupOrAllSelectors.Add(p);
+                }
+            }
+
+            var overallSuccess = false;
+
+            // 1. Handle bulb selectors with the real effect endpoint
+            if (bulbSelectors.Count > 0)
+            {
+                var bulkSelector = string.Join(",", bulbSelectors);
+                if (isSunrise)
+                {
+                    overallSuccess |= await this.PlaySunriseEffectAsync(duration, bulkSelector);
+                }
+                else
+                {
+                    overallSuccess |= await this.PlaySunsetEffectAsync(duration, bulkSelector);
+                }
+            }
+
+            // 2. Handle string/multizone lights with state transition
+            if (stringSelectors.Count > 0)
+            {
+                var strSelector = string.Join(",", stringSelectors);
+                try
+                {
+                    object payload;
+                    if (isSunrise)
+                    {
+                        // Sunrise: start dim warm orange and ramp to warm white over duration
+                        payload = new
+                        {
+                            color = "hue:30 saturation:0.8 brightness:0.7 kelvin:2500",
+                            duration = effectDuration,
+                            power = "on"
+                        };
+                    }
+                    else
+                    {
+                        // Sunset: warm amber, dimming to low brightness
+                        payload = new
+                        {
+                            color = "hue:25 saturation:0.6 brightness:0.25 kelvin:2000",
+                            duration = effectDuration,
+                            power = "on"
+                        };
+                    }
+
+                    var payloadString = JsonSerializer.Serialize(payload);
+                    var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
+
+                    PluginLog.Info($"SunriseSunsetCompat: Sending warm-state transition ({(isSunrise ? "sunrise" : "sunset")}) for string lights: {strSelector}");
+                    var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{strSelector}/state", content);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        PluginLog.Info($"SunriseSunsetCompat: State transition applied to string lights successfully.");
+                        overallSuccess = true;
+                    }
+                    else
+                    {
+                        var resp = await response.Content.ReadAsStringAsync();
+                        this.LogHttpError("SunriseSunsetCompat (string lights)", response, resp);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    PluginLog.Error(ex, $"SunriseSunsetCompat: Failed to apply state transition to string lights: {strSelector}");
+                }
+            }
+
+            // 3. Handle group or "all" selectors - try the real effect first
+            if (groupOrAllSelectors.Count > 0)
+            {
+                var grpSelector = string.Join(",", groupOrAllSelectors);
+                if (isSunrise)
+                {
+                    overallSuccess |= await this.PlaySunriseEffectAsync(duration, grpSelector);
+                }
+                else
+                {
+                    overallSuccess |= await this.PlaySunsetEffectAsync(duration, grpSelector);
+                }
+            }
+
+            return overallSuccess;
+        }
+
         public async Task<bool> PlayCycleEffectAsync(string groupId = null)
         {
             if (!this.HasToken)
@@ -1368,32 +1501,31 @@ namespace Loupedeck.LifxPlugin
             }
         }
 
+        // Maps each known HTTP status code to its log action.
+        // Add new entries here without touching control flow.
+        private static readonly Dictionary<System.Net.HttpStatusCode, Action<string>> HttpErrorHandlers =
+            new Dictionary<System.Net.HttpStatusCode, Action<string>>
+            {
+                [System.Net.HttpStatusCode.Unauthorized]     = msg => PluginLog.Error($"LIFX API Error: {msg} -> Unauthorized! Your LIFX Token is invalid, missing, or expired. Please check your token file."),
+                [System.Net.HttpStatusCode.Forbidden]        = msg => PluginLog.Error($"LIFX API Error: {msg} -> Forbidden! The token is valid but doesn't have permission to perform this action on the target lights."),
+                [System.Net.HttpStatusCode.NotFound]         = msg => PluginLog.Warning($"LIFX API Error: {msg} -> Not Found! The selector (e.g. active room or group) did not match any connected lights."),
+                [(System.Net.HttpStatusCode)422]             = msg => PluginLog.Error($"LIFX API Error: {msg} -> Unprocessable Entity! The parameters (e.g. invalid color string, duration, or cycles) are invalid."),
+                [System.Net.HttpStatusCode.TooManyRequests]  = msg => PluginLog.Warning($"LIFX API Error: {msg} -> Rate limit reached! Please wait a moment before sending more commands."),
+            };
+
         private void LogHttpError(string actionName, HttpResponseMessage response, string responseContent)
         {
             var statusCode = response.StatusCode;
             var intCode = (int)statusCode;
             var baseMsg = $"{actionName} failed. Status: {statusCode} ({intCode}). Response: {responseContent}";
 
-            switch (statusCode)
+            if (HttpErrorHandlers.TryGetValue(statusCode, out var handler))
             {
-                case System.Net.HttpStatusCode.Unauthorized:
-                    PluginLog.Error($"LIFX API Error: {baseMsg} -> Unauthorized! Your LIFX Token is invalid, missing, or expired. Please check your token file.");
-                    break;
-                case System.Net.HttpStatusCode.Forbidden:
-                    PluginLog.Error($"LIFX API Error: {baseMsg} -> Forbidden! The token is valid but doesn't have permission to perform this action on the target lights.");
-                    break;
-                case System.Net.HttpStatusCode.NotFound:
-                    PluginLog.Warning($"LIFX API Error: {baseMsg} -> Not Found! The selector (e.g. active room or group) did not match any connected lights.");
-                    break;
-                case (System.Net.HttpStatusCode)422: // UnprocessableEntity
-                    PluginLog.Error($"LIFX API Error: {baseMsg} -> Unprocessable Entity! The parameters (e.g. invalid color string, duration, or cycles) are invalid.");
-                    break;
-                case System.Net.HttpStatusCode.TooManyRequests:
-                    PluginLog.Warning($"LIFX API Error: {baseMsg} -> Rate limit reached! Please wait a moment before sending more commands.");
-                    break;
-                default:
-                    PluginLog.Warning($"LIFX API Error: {baseMsg}");
-                    break;
+                handler(baseMsg);
+            }
+            else
+            {
+                PluginLog.Warning($"LIFX API Error: {baseMsg}");
             }
         }
     }

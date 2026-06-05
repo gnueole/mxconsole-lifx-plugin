@@ -236,8 +236,12 @@ namespace Loupedeck.LifxPlugin
 
         private static void DrawLightString(BitmapBuilder builder, float x, float y, float size, BitmapColor tc, bool isDisabled = false)
         {
-            var ledColor = isDisabled ? new BitmapColor(100, 100, 100) : (tc == BlackColor ? BlackColor : PurpleColor);
-            var tapeColor = isDisabled ? new BitmapColor(60, 60, 60) : new BitmapColor(120, 120, 120);
+            // When active (purple bg, tc=Black): use white tape + white LEDs so coil is visible on purple
+            // When inactive (black bg, tc=Purple): use purple tape + purple LEDs
+            // When disabled: use gray
+            var isActive = !isDisabled && tc == BlackColor;
+            var ledColor = isDisabled ? new BitmapColor(80, 80, 80) : (isActive ? new BitmapColor(255, 255, 255) : PurpleColor);
+            var tapeColor = isDisabled ? new BitmapColor(50, 50, 50) : (isActive ? new BitmapColor(200, 200, 200) : new BitmapColor(160, 100, 200));
 
             // Draw concentric partial circles (coiled tape)
             float r1 = size * 0.40f;
@@ -263,8 +267,9 @@ namespace Loupedeck.LifxPlugin
             Action<float, float> drawLed = (px, py) =>
             {
                 builder.DrawCircle((int)px, (int)py, (int)(size * 0.05f), ledColor);
-                if (!isDisabled && tc != BlackColor)
+                if (!isDisabled)
                 {
+                    // Draw glow ring around each LED
                     builder.DrawCircle((int)px, (int)py, (int)(size * 0.08f), ledColor);
                 }
             };
