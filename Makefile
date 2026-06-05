@@ -69,6 +69,7 @@ clean: check-dotnet
 setup-token:
 	@if [ "$(TOKEN_EXISTS)" = "no" ]; then \
 		echo "LIFX API Token not found."; \
+		echo "You can generate a token at: https://cloud.lifx.com/settings"; \
 		printf "Please enter your LIFX Personal Access Token: "; \
 		read token; \
 		if [ -z "$$token" ]; then \
