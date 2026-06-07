@@ -12,12 +12,73 @@ namespace Loupedeck.LifxPlugin
 
         protected override bool OnLoad()
         {
+            var plugin = (LifxPlugin)this.Plugin;
+            if (plugin != null)
+            {
+                plugin.GroupsUpdated += this.OnGroupsUpdated;
+                plugin.LightsUpdated += this.OnLightsUpdated;
+
+                if (plugin.Groups.Count > 0 || plugin.Lights.Count > 0)
+                {
+                    this.UpdateParameters();
+                }
+            }
             return true;
         }
 
         protected override bool OnUnload()
         {
+            var plugin = (LifxPlugin)this.Plugin;
+            if (plugin != null)
+            {
+                plugin.GroupsUpdated -= this.OnGroupsUpdated;
+                plugin.LightsUpdated -= this.OnLightsUpdated;
+            }
             return true;
+        }
+
+        private void OnGroupsUpdated(object sender, EventArgs e) => this.UpdateParameters();
+        private void OnLightsUpdated(object sender, EventArgs e) => this.UpdateParameters();
+
+        private void UpdateParameters()
+        {
+            try
+            {
+                var plugin = (LifxPlugin)this.Plugin;
+                if (plugin == null)
+                {
+                    return;
+                }
+
+                this.RemoveAllParameters();
+
+                // Add Toggle All
+                this.AddParameter("all", "Toggle All", "LIFX Toggle");
+
+                // Register group toggles
+                if (plugin.Groups != null)
+                {
+                    foreach (var group in plugin.Groups)
+                    {
+                        this.AddParameter($"group_id:{group.Id}", $"Toggle {group.Name}", "LIFX Group Toggle");
+                    }
+                }
+
+                // Register light toggles
+                if (plugin.Lights != null)
+                {
+                    foreach (var light in plugin.Lights)
+                    {
+                        this.AddParameter($"id:{light.Id}", $"Toggle {light.Name}", "LIFX Light Toggle");
+                    }
+                }
+
+                this.ParametersChanged();
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error(ex, "Error in ToggleLightCommand.UpdateParameters");
+            }
         }
 
         protected override void RunCommand(String actionParameter)

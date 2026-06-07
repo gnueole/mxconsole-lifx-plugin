@@ -10,8 +10,8 @@ namespace Loupedeck.LifxPlugin
         internal static double DefaultBrightness { get; set; } = 0.5;   // initial / fallback value (0–1)
         internal static double MaxBrightness { get; set; } = 1.0;   // reset target — full brightness
         internal static double MinBrightness { get; set; } = 0.0;   // floor
-        internal static double StepPerTick { get; set; } = 0.02;  // brightness change per encoder click
-        internal static int CoalesceDelayMs { get; set; } = 350;   // ms — throttle rapid encoder turns before sending HTTP
+        internal static double StepPerTick { get; set; } = 0.01;  // brightness change per encoder click
+        internal static int CoalesceDelayMs { get; set; } = 100;   // ms — throttle rapid encoder turns before sending HTTP
         internal static string LogFormatAll { get; set; } = "[Brightness/All] diff={0:+0;-0}, target={1:0}%";
         internal static string LogFormatGroup { get; set; } = "[Brightness/Group {0}] diff={1:+0;-0}, target={2:0}%";
 

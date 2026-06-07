@@ -10,7 +10,7 @@ namespace Loupedeck.LifxPlugin
         internal static int DefaultTemperature { get; set; } = 3500;  // Kelvin — warm white reset target
         internal static int MinTemperature { get; set; } = 1500;  // Kelvin — warmest (candlelight)
         internal static int MaxTemperature { get; set; } = 9000;  // Kelvin — coolest (daylight)
-        internal static int StepPerTick { get; set; } = 200;   // Kelvin change per encoder click
+        internal static int StepPerTick { get; set; } = 100;   // Kelvin change per encoder click
         public static string LogFormatGlobal { get; set; } = "[Warmth] Global: diff={0:+0;-0}, target={1}K";
         public static string LogFormatGroup { get; set; } = "[Warmth] Group {0}: diff={1:+0;-0}, target={2}K";
         public static string LogResetGlobal { get; set; } = "[Warmth] Reset global temperature to {0}K";

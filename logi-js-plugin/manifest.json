@@ -1,0 +1,41 @@
+{
+  "manifest_version": 2,
+  "id": "me.eole.lifx",
+  "name": "LIFX Lights",
+  "version": "1.2.0",
+  "description": "Controls LIFX smart lights via the Cloud API",
+  "author": "Éole Lab",
+  "background": {
+    "scripts": ["plugin.js"]
+  },
+  "actions": [
+    {
+      "id": "lifx_on",
+      "name": "Turn on all lights",
+      "type": "custom"
+    },
+    {
+      "id": "lifx_off",
+      "name": "Turn off all lights",
+      "type": "custom"
+    },
+    {
+      "id": "lifx_toggle",
+      "name": "Toggle all lights",
+      "type": "custom"
+    },
+    {
+      "id": "lifx_scene_relax",
+      "name": "Activate Relax Scene",
+      "type": "custom"
+    }
+  ],
+  "settings": {
+    "lifx_token": {
+      "type": "string",
+      "label": "LIFX Access Token",
+      "placeholder": "c123456789...",
+      "description": "To link your lights, click the button below to generate a Personal Access Token on your LIFX Cloud account, then paste it into the field.\nLink: https://cloud.lifx.com/settings"
+    }
+  }
+}

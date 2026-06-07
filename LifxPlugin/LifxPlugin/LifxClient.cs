@@ -29,43 +29,56 @@ namespace Loupedeck.LifxPlugin
         public string Power { get; set; }
         public double Brightness { get; set; }
         public string Type { get; set; }
+        public string GroupId { get; set; }
+        public double Hue { get; set; }
+        public double Saturation { get; set; }
+        public int Kelvin { get; set; }
     }
 
-    public class LifxClient
+    public class LifxClient : IDisposable
     {
         public static string TokenFileName { get; set; } = "LIFX_Token.txt";
         public static string FallbackTokenFileName { get; set; } = ".lifx_token";
 
         private readonly HttpClient _httpClient;
-        private readonly string _token;
+        private readonly LifxLocalClient _localClient;
+        private readonly Dictionary<string, DateTime> _lastLocalFailure = new Dictionary<string, DateTime>();
+        private readonly object _failureLock = new object();
+        private List<LifxLight> _cachedLights = new List<LifxLight>();
+        private string _token;
 
-        public LifxClient()
+        public LifxClient(string token = null)
         {
-            try
+            this._token = token?.Trim();
+
+            if (string.IsNullOrEmpty(this._token))
             {
-                // First try Documents/LIFX_Token.txt (user-friendly location)
-                var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                var documentsTokenPath = Path.Combine(documentsPath, TokenFileName);
-
-                if (File.Exists(documentsTokenPath))
+                try
                 {
-                    this._token = File.ReadAllText(documentsTokenPath).Trim();
-                }
-                else
-                {
-                    // Fallback to UserProfile/.lifx_token (developer/power-user location)
-                    var userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    var userProfileTokenPath = Path.Combine(userProfilePath, FallbackTokenFileName);
+                    // First try Documents/LIFX_Token.txt (user-friendly location)
+                    var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                    var documentsTokenPath = Path.Combine(documentsPath, TokenFileName);
 
-                    if (File.Exists(userProfileTokenPath))
+                    if (File.Exists(documentsTokenPath))
                     {
-                        this._token = File.ReadAllText(userProfileTokenPath).Trim();
+                        this._token = File.ReadAllText(documentsTokenPath).Trim();
+                    }
+                    else
+                    {
+                        // Fallback to UserProfile/.lifx_token (developer/power-user location)
+                        var userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                        var userProfileTokenPath = Path.Combine(userProfilePath, FallbackTokenFileName);
+
+                        if (File.Exists(userProfileTokenPath))
+                        {
+                            this._token = File.ReadAllText(userProfileTokenPath).Trim();
+                        }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error(ex, $"Failed to load LIFX token from Documents/{TokenFileName} or ~/{FallbackTokenFileName}");
+                catch (Exception ex)
+                {
+                    PluginLog.Error(ex, $"Failed to load LIFX token from Documents/{TokenFileName} or ~/{FallbackTokenFileName}");
+                }
             }
 
             this._httpClient = new HttpClient();
@@ -73,9 +86,149 @@ namespace Loupedeck.LifxPlugin
             {
                 this._httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", this._token);
             }
+            this._localClient = new LifxLocalClient();
+        }
+
+        public void UpdateToken(string token)
+        {
+            this._token = token?.Trim();
+            this._httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", this._token);
         }
 
         public bool HasToken => !string.IsNullOrEmpty(this._token);
+
+        public void Dispose()
+        {
+            this._localClient?.Dispose();
+            this._httpClient?.Dispose();
+        }
+
+        private List<LifxLight> ResolveLightsForSelector(string selector)
+        {
+            var resolved = new List<LifxLight>();
+            var resolvedSelector = this.ResolveSelector(selector);
+
+            if (resolvedSelector == "all")
+            {
+                resolved.AddRange(this._cachedLights);
+            }
+            else if (resolvedSelector.StartsWith("id:"))
+            {
+                var lightId = resolvedSelector.Substring(3);
+                var light = this._cachedLights.Find(l => l.Id == lightId);
+                if (light != null)
+                {
+                    resolved.Add(light);
+                }
+            }
+            else if (resolvedSelector.StartsWith("group_id:"))
+            {
+                var groupId = resolvedSelector.Substring(9);
+                foreach (var light in this._cachedLights)
+                {
+                    if (light.GroupId == groupId)
+                    {
+                        resolved.Add(light);
+                    }
+                }
+            }
+
+            return resolved;
+        }
+
+        private async Task<bool> ExecuteHybridCommandAsync(
+            string selector,
+            Func<LifxLight, Task<bool>> localFunc,
+            Func<string, Task<bool>> cloudFunc)
+        {
+            var targetLights = this.ResolveLightsForSelector(selector);
+            if (targetLights.Count > 0)
+            {
+                var localCapableLights = new List<LifxLight>();
+                var cloudFallbackLights = new List<LifxLight>();
+                var now = DateTime.UtcNow;
+
+                lock (this._failureLock)
+                {
+                    foreach (var light in targetLights)
+                    {
+                        if (this._lastLocalFailure.TryGetValue(light.Id, out var lastFailure) && (now - lastFailure).TotalSeconds < 15)
+                        {
+                            cloudFallbackLights.Add(light);
+                        }
+                        else
+                        {
+                            localCapableLights.Add(light);
+                        }
+                    }
+                }
+
+                var successfulLocalIds = new HashSet<string>();
+                var failedLocalLights = new List<LifxLight>();
+
+                if (localCapableLights.Count > 0)
+                {
+                    var localTasks = localCapableLights.Select(async light =>
+                    {
+                        var localSuccess = await localFunc(light);
+                        if (localSuccess)
+                        {
+                            lock (successfulLocalIds)
+                            {
+                                successfulLocalIds.Add(light.Id);
+                            }
+                        }
+                        else
+                        {
+                            lock (failedLocalLights)
+                            {
+                                failedLocalLights.Add(light);
+                            }
+                            lock (this._failureLock)
+                            {
+                                this._lastLocalFailure[light.Id] = DateTime.UtcNow;
+                            }
+                            PluginLog.Warning($"Local command failed or IP not found for light {light.Name} ({light.Id}). Routing to Cloud API.");
+                        }
+                    }).ToList();
+
+                    await Task.WhenAll(localTasks);
+                }
+
+                var allFailedLights = new List<LifxLight>();
+                allFailedLights.AddRange(cloudFallbackLights);
+                allFailedLights.AddRange(failedLocalLights);
+
+                if (allFailedLights.Count > 0)
+                {
+                    var fallbackSelector = string.Join(",", allFailedLights.Select(l => $"id:{l.Id}"));
+                    PluginLog.Info($"Queueing cloud API fallback for lights: {fallbackSelector}");
+                    
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await cloudFunc(fallbackSelector);
+                        }
+                        catch (Exception ex)
+                        {
+                            PluginLog.Error(ex, $"Failed to execute background cloud fallback for: {fallbackSelector}");
+                        }
+                    });
+                }
+
+                if (successfulLocalIds.Count > 0 || allFailedLights.Count == 0)
+                {
+                    return true;
+                }
+                
+                var finalFallbackSelector = string.Join(",", allFailedLights.Select(l => $"id:{l.Id}"));
+                return await cloudFunc(finalFallbackSelector);
+            }
+
+            PluginLog.Info($"No target lights resolved locally. Executing command via Cloud API for selector: {selector}");
+            return await cloudFunc(selector);
+        }
 
         public async Task<bool> ToggleLightsAsync()
         {
@@ -85,23 +238,29 @@ namespace Loupedeck.LifxPlugin
                 return false;
             }
 
-            try
-            {
-                var response = await this._httpClient.PostAsync("https://api.lifx.com/v1/lights/all/toggle", null);
-                if (response.IsSuccessStatusCode)
+            return await this.ExecuteHybridCommandAsync(
+                "all",
+                async (light) => await this._localClient.SetPowerAsync(light.Id, light.Power == "off"),
+                async (sel) =>
                 {
-                    PluginLog.Info("Successfully toggled LIFX lights.");
-                    return true;
+                    try
+                    {
+                        var response = await this._httpClient.PostAsync($"https://api.lifx.com/v1/lights/{sel}/toggle", null);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            PluginLog.Info($"Successfully toggled LIFX lights via Cloud for selector: {sel}.");
+                            return true;
+                        }
+                        PluginLog.Warning($"Failed to toggle lights via Cloud for selector {sel}. API returned status code: {response.StatusCode}");
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error(ex, $"HTTP request to toggle LIFX lights failed for selector {sel}.");
+                        return false;
+                    }
                 }
-
-                PluginLog.Warning($"Failed to toggle lights. API returned status code: {response.StatusCode}");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error(ex, "HTTP request to toggle LIFX lights failed.");
-                return false;
-            }
+            );
         }
 
         public async Task<double> GetBrightnessAsync()
@@ -146,38 +305,41 @@ namespace Loupedeck.LifxPlugin
                 return false;
             }
 
-            try
-            {
-                brightness = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, brightness));
+            brightness = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, brightness));
 
-                var payload = new { brightness = brightness, power = brightness > 0.001 ? "on" : "off" };
-                var payloadString = JsonSerializer.Serialize(payload);
-                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
-
-                var startTime = DateTime.UtcNow;
-                PluginLog.Info($"LIFX Client: Sending SetBrightnessAsync({brightness * 100:0}%) to all lights...");
-                var response = await this._httpClient.PutAsync("https://api.lifx.com/v1/lights/all/state", content);
-                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
-
-                if (response.IsSuccessStatusCode)
+            return await this.ExecuteHybridCommandAsync(
+                "all",
+                async (light) => await this._localClient.SetColorAsync(light.Id, light.Hue, light.Saturation, brightness, light.Kelvin),
+                async (sel) =>
                 {
-                    PluginLog.Info($"LIFX Client: SetBrightnessAsync succeeded in {elapsed:0}ms.");
-                    return true;
-                }
+                    try
+                    {
+                        var payload = new { brightness = brightness, power = brightness > 0.001 ? "on" : "off" };
+                        var payloadString = JsonSerializer.Serialize(payload);
+                        var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
 
-                var contentString = await response.Content.ReadAsStringAsync();
-                PluginLog.Warning($"LIFX Client: SetBrightnessAsync failed in {elapsed:0}ms. Status: {response.StatusCode} ({(int)response.StatusCode}). Response: {contentString}");
-                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                {
-                    PluginLog.Warning("LIFX Client: Rate limit reached! Please slow down adjustments.");
+                        var startTime = DateTime.UtcNow;
+                        PluginLog.Info($"LIFX Client: Sending SetBrightnessAsync({brightness * 100:0}%) to selector {sel} via Cloud...");
+                        var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{sel}/state", content);
+                        var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            PluginLog.Info($"LIFX Client: SetBrightnessAsync succeeded via Cloud in {elapsed:0}ms.");
+                            return true;
+                        }
+
+                        var contentString = await response.Content.ReadAsStringAsync();
+                        PluginLog.Warning($"LIFX Client: SetBrightnessAsync failed via Cloud in {elapsed:0}ms. Status: {response.StatusCode}. Response: {contentString}");
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error(ex, "HTTP request to set LIFX brightness failed.");
+                        return false;
+                    }
                 }
-                return false;
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error(ex, "HTTP request to set LIFX brightness failed.");
-                return false;
-            }
+            );
         }
 
         public async Task<List<LifxGroup>> GetGroupsAsync()
@@ -409,6 +571,25 @@ namespace Loupedeck.LifxPlugin
                                 }
                             }
 
+                            var groupId = "";
+                            if (element.TryGetProperty("group", out var groupProp) && groupProp.ValueKind == JsonValueKind.Object)
+                            {
+                                if (groupProp.TryGetProperty("id", out var grpIdProp))
+                                {
+                                    groupId = grpIdProp.GetString();
+                                }
+                            }
+
+                            double hueVal = 0.0;
+                            double satVal = 0.0;
+                            int kelvinVal = 3500;
+                            if (element.TryGetProperty("color", out var colorProp) && colorProp.ValueKind == JsonValueKind.Object)
+                            {
+                                if (colorProp.TryGetProperty("hue", out var hProp)) hueVal = hProp.GetDouble();
+                                if (colorProp.TryGetProperty("saturation", out var sProp)) satVal = sProp.GetDouble();
+                                if (colorProp.TryGetProperty("kelvin", out var kProp)) kelvinVal = kProp.GetInt32();
+                            }
+
                             if (!string.IsNullOrEmpty(id))
                             {
                                 lights.Add(new LifxLight
@@ -418,7 +599,11 @@ namespace Loupedeck.LifxPlugin
                                     Connected = connected,
                                     Power = power,
                                     Brightness = brightness,
-                                    Type = type
+                                    Type = type,
+                                    GroupId = groupId,
+                                    Hue = hueVal,
+                                    Saturation = satVal,
+                                    Kelvin = kelvinVal
                                 });
                             }
                         }
@@ -430,6 +615,7 @@ namespace Loupedeck.LifxPlugin
                 PluginLog.Error(ex, "Failed to retrieve LIFX lights.");
             }
 
+            this._cachedLights = lights;
             return lights;
         }
 
@@ -483,22 +669,29 @@ namespace Loupedeck.LifxPlugin
 
             var selector = this.ResolveSelector(groupId);
 
-            try
-            {
-                var response = await this._httpClient.PostAsync($"https://api.lifx.com/v1/lights/{selector}/toggle", null);
-                if (response.IsSuccessStatusCode)
+            return await this.ExecuteHybridCommandAsync(
+                selector,
+                async (light) => await this._localClient.SetPowerAsync(light.Id, light.Power == "off"),
+                async (sel) =>
                 {
-                    return true;
+                    try
+                    {
+                        var response = await this._httpClient.PostAsync($"https://api.lifx.com/v1/lights/{sel}/toggle", null);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            return true;
+                        }
+                        var contentString = await response.Content.ReadAsStringAsync();
+                        this.LogHttpError("ToggleGroupAsync", response, contentString);
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error(ex, $"Failed to toggle LIFX selector {sel}.");
+                        return false;
+                    }
                 }
-                var contentString = await response.Content.ReadAsStringAsync();
-                this.LogHttpError("ToggleGroupAsync", response, contentString);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error(ex, $"Failed to toggle LIFX selector {selector}.");
-                return false;
-            }
+            );
         }
 
         public async Task<double> GetGroupBrightnessAsync(string groupId)
@@ -555,34 +748,41 @@ namespace Loupedeck.LifxPlugin
             }
 
             var selector = this.ResolveSelector(groupId);
+            brightness = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, brightness));
 
-            try
-            {
-                brightness = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(BrightnessAdjustment.MaxBrightness, brightness));
-                var payload = new { brightness = brightness, power = brightness > 0.001 ? "on" : "off" };
-                var payloadString = JsonSerializer.Serialize(payload);
-                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
-
-                var startTime = DateTime.UtcNow;
-                PluginLog.Info($"LIFX Client: Sending SetGroupBrightnessAsync({brightness * 100:0}%) for selector {selector}...");
-                var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{selector}/state", content);
-                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
-
-                if (response.IsSuccessStatusCode)
+            return await this.ExecuteHybridCommandAsync(
+                selector,
+                async (light) => await this._localClient.SetColorAsync(light.Id, light.Hue, light.Saturation, brightness, light.Kelvin),
+                async (sel) =>
                 {
-                    PluginLog.Info($"LIFX Client: SetGroupBrightnessAsync succeeded in {elapsed:0}ms.");
-                    return true;
-                }
+                    try
+                    {
+                        var payload = new { brightness = brightness, power = brightness > 0.001 ? "on" : "off" };
+                        var payloadString = JsonSerializer.Serialize(payload);
+                        var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
 
-                var contentString = await response.Content.ReadAsStringAsync();
-                this.LogHttpError("SetGroupBrightnessAsync", response, contentString);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error(ex, $"Failed to set brightness for selector {selector}.");
-                return false;
-            }
+                        var startTime = DateTime.UtcNow;
+                        PluginLog.Info($"LIFX Client: Sending SetGroupBrightnessAsync({brightness * 100:0}%) for selector {sel} via Cloud...");
+                        var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{sel}/state", content);
+                        var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            PluginLog.Info($"LIFX Client: SetGroupBrightnessAsync succeeded via Cloud in {elapsed:0}ms.");
+                            return true;
+                        }
+
+                        var contentString = await response.Content.ReadAsStringAsync();
+                        this.LogHttpError("SetGroupBrightnessAsync", response, contentString);
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error(ex, $"Failed to set brightness for selector {sel}.");
+                        return false;
+                    }
+                }
+            );
         }
 
         public async Task<bool> SetColorToWhiteAsync(string groupId = null)
@@ -595,28 +795,35 @@ namespace Loupedeck.LifxPlugin
 
             var selector = this.ResolveSelector(groupId);
 
-            try
-            {
-                var payload = new { color = "white" };
-                var payloadString = JsonSerializer.Serialize(payload);
-                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
-
-                var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{selector}/state", content);
-                if (response.IsSuccessStatusCode)
+            return await this.ExecuteHybridCommandAsync(
+                selector,
+                async (light) => await this._localClient.SetColorAsync(light.Id, light.Hue, 0.0, light.Brightness, light.Kelvin),
+                async (sel) =>
                 {
-                    PluginLog.Info($"Successfully reset color to standard white for selector: {selector}.");
-                    return true;
-                }
+                    try
+                    {
+                        var payload = new { color = "white" };
+                        var payloadString = JsonSerializer.Serialize(payload);
+                        var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
 
-                var contentString = await response.Content.ReadAsStringAsync();
-                this.LogHttpError("SetColorToWhiteAsync", response, contentString);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error(ex, $"Failed to reset color for selector {selector}.");
-                return false;
-            }
+                        var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{sel}/state", content);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            PluginLog.Info($"Successfully reset color to standard white via Cloud for selector: {sel}.");
+                            return true;
+                        }
+
+                        var contentString = await response.Content.ReadAsStringAsync();
+                        this.LogHttpError("SetColorToWhiteAsync", response, contentString);
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error(ex, $"Failed to reset color for selector {sel}.");
+                        return false;
+                    }
+                }
+            );
         }
 
         public async Task<double> GetHueAsync()
@@ -664,38 +871,41 @@ namespace Loupedeck.LifxPlugin
                 return false;
             }
 
-            try
-            {
-                hue = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(ActiveRoomHue.HueRange, hue));
+            hue = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(ActiveRoomHue.HueRange, hue));
 
-                var payload = new { color = $"hue:{hue:0.0} saturation:1.0", power = "on" };
-                var payloadString = JsonSerializer.Serialize(payload);
-                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
-
-                var startTime = DateTime.UtcNow;
-                PluginLog.Info($"LIFX Client: Sending SetHueAsync({hue:0.0}) to all lights...");
-                var response = await this._httpClient.PutAsync("https://api.lifx.com/v1/lights/all/state", content);
-                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
-
-                if (response.IsSuccessStatusCode)
+            return await this.ExecuteHybridCommandAsync(
+                "all",
+                async (light) => await this._localClient.SetColorAsync(light.Id, hue, 1.0, light.Brightness, light.Kelvin),
+                async (sel) =>
                 {
-                    PluginLog.Info($"LIFX Client: SetHueAsync succeeded in {elapsed:0}ms.");
-                    return true;
-                }
+                    try
+                    {
+                        var payload = new { color = $"hue:{hue:0.0} saturation:1.0", power = "on" };
+                        var payloadString = JsonSerializer.Serialize(payload);
+                        var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
 
-                var contentString = await response.Content.ReadAsStringAsync();
-                PluginLog.Warning($"LIFX Client: SetHueAsync failed in {elapsed:0}ms. Status: {response.StatusCode} ({(int)response.StatusCode}). Response: {contentString}");
-                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                {
-                    PluginLog.Warning("LIFX Client: Rate limit reached! Please slow down adjustments.");
+                        var startTime = DateTime.UtcNow;
+                        PluginLog.Info($"LIFX Client: Sending SetHueAsync({hue:0.0}) to selector {sel} via Cloud...");
+                        var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{sel}/state", content);
+                        var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            PluginLog.Info($"LIFX Client: SetHueAsync succeeded via Cloud in {elapsed:0}ms.");
+                            return true;
+                        }
+
+                        var contentString = await response.Content.ReadAsStringAsync();
+                        PluginLog.Warning($"LIFX Client: SetHueAsync failed via Cloud in {elapsed:0}ms. Status: {response.StatusCode}. Response: {contentString}");
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error(ex, "HTTP request to set LIFX hue failed.");
+                        return false;
+                    }
                 }
-                return false;
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error(ex, "HTTP request to set LIFX hue failed.");
-                return false;
-            }
+            );
         }
 
         public async Task<double> GetGroupHueAsync(string groupId)
@@ -755,34 +965,41 @@ namespace Loupedeck.LifxPlugin
             }
 
             var selector = this.ResolveSelector(groupId);
+            hue = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(ActiveRoomHue.HueRange, hue));
 
-            try
-            {
-                hue = Math.Max(BrightnessAdjustment.MinBrightness, Math.Min(ActiveRoomHue.HueRange, hue));
-                var payload = new { color = $"hue:{hue:0.0} saturation:1.0", power = "on" };
-                var payloadString = JsonSerializer.Serialize(payload);
-                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
-
-                var startTime = DateTime.UtcNow;
-                PluginLog.Info($"LIFX Client: Sending SetGroupHueAsync({hue:0.0}) for selector {selector}...");
-                var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{selector}/state", content);
-                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
-
-                if (response.IsSuccessStatusCode)
+            return await this.ExecuteHybridCommandAsync(
+                selector,
+                async (light) => await this._localClient.SetColorAsync(light.Id, hue, 1.0, light.Brightness, light.Kelvin),
+                async (sel) =>
                 {
-                    PluginLog.Info($"LIFX Client: SetGroupHueAsync succeeded in {elapsed:0}ms.");
-                    return true;
-                }
+                    try
+                    {
+                        var payload = new { color = $"hue:{hue:0.0} saturation:1.0", power = "on" };
+                        var payloadString = JsonSerializer.Serialize(payload);
+                        var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
 
-                var contentString = await response.Content.ReadAsStringAsync();
-                this.LogHttpError("SetGroupHueAsync", response, contentString);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error(ex, $"Failed to set hue for selector {selector}.");
-                return false;
-            }
+                        var startTime = DateTime.UtcNow;
+                        PluginLog.Info($"LIFX Client: Sending SetGroupHueAsync({hue:0.0}) for selector {sel} via Cloud...");
+                        var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{sel}/state", content);
+                        var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            PluginLog.Info($"LIFX Client: SetGroupHueAsync succeeded via Cloud in {elapsed:0}ms.");
+                            return true;
+                        }
+
+                        var contentString = await response.Content.ReadAsStringAsync();
+                        this.LogHttpError("SetGroupHueAsync", response, contentString);
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error(ex, $"Failed to set hue for selector {sel}.");
+                        return false;
+                    }
+                }
+            );
         }
 
         public async Task<int> GetTemperatureAsync()
@@ -830,34 +1047,41 @@ namespace Loupedeck.LifxPlugin
                 return false;
             }
 
-            try
-            {
-                kelvin = Math.Max(1500, Math.Min(9000, kelvin));
+            kelvin = Math.Max(1500, Math.Min(9000, kelvin));
 
-                var payload = new { color = $"kelvin:{kelvin}", power = "on" };
-                var payloadString = JsonSerializer.Serialize(payload);
-                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
-
-                var startTime = DateTime.UtcNow;
-                PluginLog.Info($"LIFX Client: Sending SetTemperatureAsync({kelvin}K) to all lights...");
-                var response = await this._httpClient.PutAsync("https://api.lifx.com/v1/lights/all/state", content);
-                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
-
-                if (response.IsSuccessStatusCode)
+            return await this.ExecuteHybridCommandAsync(
+                "all",
+                async (light) => await this._localClient.SetColorAsync(light.Id, light.Hue, 0.0, light.Brightness, kelvin),
+                async (sel) =>
                 {
-                    PluginLog.Info($"LIFX Client: SetTemperatureAsync succeeded in {elapsed:0}ms.");
-                    return true;
-                }
+                    try
+                    {
+                        var payload = new { color = $"kelvin:{kelvin}", power = "on" };
+                        var payloadString = JsonSerializer.Serialize(payload);
+                        var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
 
-                var contentString = await response.Content.ReadAsStringAsync();
-                PluginLog.Warning($"LIFX Client: SetTemperatureAsync failed in {elapsed:0}ms. Status: {response.StatusCode}. Response: {contentString}");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error(ex, "HTTP request to set LIFX temperature failed.");
-                return false;
-            }
+                        var startTime = DateTime.UtcNow;
+                        PluginLog.Info($"LIFX Client: Sending SetTemperatureAsync({kelvin}K) to selector {sel} via Cloud...");
+                        var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{sel}/state", content);
+                        var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            PluginLog.Info($"LIFX Client: SetTemperatureAsync succeeded via Cloud in {elapsed:0}ms.");
+                            return true;
+                        }
+
+                        var contentString = await response.Content.ReadAsStringAsync();
+                        PluginLog.Warning($"LIFX Client: SetTemperatureAsync failed via Cloud in {elapsed:0}ms. Status: {response.StatusCode}. Response: {contentString}");
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error(ex, "HTTP request to set LIFX temperature failed.");
+                        return false;
+                    }
+                }
+            );
         }
 
         public async Task<int> GetGroupTemperatureAsync(string groupId)
@@ -917,34 +1141,41 @@ namespace Loupedeck.LifxPlugin
             }
 
             var selector = this.ResolveSelector(groupId);
+            kelvin = Math.Max(1500, Math.Min(9000, kelvin));
 
-            try
-            {
-                kelvin = Math.Max(1500, Math.Min(9000, kelvin));
-                var payload = new { color = $"kelvin:{kelvin}", power = "on" };
-                var payloadString = JsonSerializer.Serialize(payload);
-                var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
-
-                var startTime = DateTime.UtcNow;
-                PluginLog.Info($"LIFX Client: Sending SetGroupTemperatureAsync({kelvin}K) for selector {selector}...");
-                var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{selector}/state", content);
-                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
-
-                if (response.IsSuccessStatusCode)
+            return await this.ExecuteHybridCommandAsync(
+                selector,
+                async (light) => await this._localClient.SetColorAsync(light.Id, light.Hue, 0.0, light.Brightness, kelvin),
+                async (sel) =>
                 {
-                    PluginLog.Info($"LIFX Client: SetGroupTemperatureAsync succeeded in {elapsed:0}ms.");
-                    return true;
-                }
+                    try
+                    {
+                        var payload = new { color = $"kelvin:{kelvin}", power = "on" };
+                        var payloadString = JsonSerializer.Serialize(payload);
+                        var content = new StringContent(payloadString, System.Text.Encoding.UTF8, "application/json");
 
-                var contentString = await response.Content.ReadAsStringAsync();
-                this.LogHttpError("SetGroupTemperatureAsync", response, contentString);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Error(ex, $"Failed to set temperature for selector {selector}.");
-                return false;
-            }
+                        var startTime = DateTime.UtcNow;
+                        PluginLog.Info($"LIFX Client: Sending SetGroupTemperatureAsync({kelvin}K) for selector {sel} via Cloud...");
+                        var response = await this._httpClient.PutAsync($"https://api.lifx.com/v1/lights/{sel}/state", content);
+                        var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            PluginLog.Info($"LIFX Client: SetGroupTemperatureAsync succeeded via Cloud in {elapsed:0}ms.");
+                            return true;
+                        }
+
+                        var contentString = await response.Content.ReadAsStringAsync();
+                        this.LogHttpError("SetGroupTemperatureAsync", response, contentString);
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error(ex, $"Failed to set temperature for selector {sel}.");
+                        return false;
+                    }
+                }
+            );
         }
 
         public async Task<bool> PlayBreatheEffectAsync(string color, double period, string groupId = null)
@@ -1535,7 +1766,7 @@ namespace Loupedeck.LifxPlugin
 
     public class RequestCoalescer
     {
-        public static int DefaultDelayMs { get; set; } = 350;
+        public static int DefaultDelayMs { get; set; } = 100;
 
         private readonly Func<Task> _action;
         private readonly int _delayMs;

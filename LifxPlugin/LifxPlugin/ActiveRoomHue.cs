@@ -8,7 +8,7 @@ namespace Loupedeck.LifxPlugin
     {
         // ── Tunable constants ─────────────────────────────────────────────────────
         internal static double HueRange { get; set; } = 360.0;  // degrees — full circle wrap
-        internal static double StepPerTick { get; set; } = 5.0;    // degrees per encoder click
+        internal static double StepPerTick { get; set; } = 2.0;    // degrees per encoder click
         public static string LogFormatGlobal { get; set; } = "[Hue] Global: diff={0:+0;-0}, target={1:0.0}°";
         public static string LogFormatGroup { get; set; } = "[Hue] Group {0}: diff={1:+0;-0}, target={2:0.0}°";
         public static string LogFormatBrightnessGlobal { get; set; } = "[Hue/Brightness] Global Scroll: diff={0:+0;-0}, target={1:0}%";

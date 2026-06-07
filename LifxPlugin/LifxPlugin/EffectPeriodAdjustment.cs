@@ -10,7 +10,7 @@ namespace Loupedeck.LifxPlugin
         internal static double MinPeriod { get; set; } = 0.5;   // seconds — slowest allowed effect
         internal static double MaxPeriod { get; set; } = 10.0;  // seconds — fastest allowed effect
         internal static double StepPerTick { get; set; } = 0.1;   // seconds added/removed per encoder click
-        internal static int CoalesceDelayMs { get; set; } = 300;  // ms — throttle rapid encoder turns before re-triggering
+        internal static int CoalesceDelayMs { get; set; } = 100;  // ms — throttle rapid encoder turns before re-triggering
         public static string LogFormatAdjustment { get; set; } = "[Effect Speed] diff={0:+0;-0}, target={1:0.0}s";
         public static string LogFormatRetrigger { get; set; } = "[Effect Speed] Re-triggering last effect '{0}' at period {1:0.0}s...";
         public static string LogReset { get; set; } = "[Effect Speed] Reset to {0:0.0}s";
